@@ -1,0 +1,35 @@
+const jwt = require("jsonwebtoken");
+const env = require("../config/env");
+
+function signToken(user) {
+  return jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+    },
+    env.JWT_SECRET,
+    { expiresIn: env.JWT_EXPIRES_IN },
+  );
+}
+
+function verifyToken(token) {
+  return jwt.verify(token, env.JWT_SECRET);
+}
+
+function sanitizeUser(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    avatarSeed: row.avatar_seed,
+    lastSeen: row.last_seen,
+    createdAt: row.created_at,
+  };
+}
+
+module.exports = {
+  signToken,
+  verifyToken,
+  sanitizeUser,
+};
