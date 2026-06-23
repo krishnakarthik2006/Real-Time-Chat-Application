@@ -69,7 +69,7 @@ export default function EnhancedSearch({
     // Search messages
     if (filter === "all" || filter === "messages") {
       Object.entries(messages).forEach(([conversationId, conversationMessages]) => {
-        const conversation = conversations.find(c => c.id === Number(conversationId));
+        const conversation = conversations.find(c => c.id === conversationId);
         
         conversationMessages.forEach(message => {
           if (!getDateFilter(message.createdAt)) return;
@@ -81,7 +81,7 @@ export default function EnhancedSearch({
             results.push({
               type: 'message',
               id: message.id,
-              conversationId: Number(conversationId),
+              conversationId,
               conversation,
               message,
               title: message.sender?.name || "Unknown",

@@ -88,7 +88,7 @@ function setupSocket(io) {
     });
 
     socket.on("conversation:join", safelyHandle(async ({ conversationId }) => {
-      const membership = await isConversationParticipant(Number(conversationId), user.id);
+      const membership = await isConversationParticipant(conversationId, user.id);
 
       if (membership) {
         socket.join(conversationRoom(conversationId));
@@ -100,11 +100,11 @@ function setupSocket(io) {
     }));
 
     socket.on("typing:start", safelyHandle(async ({ conversationId }) => {
-      const membership = await isConversationParticipant(Number(conversationId), user.id);
+      const membership = await isConversationParticipant(conversationId, user.id);
 
       if (membership) {
         socket.to(conversationRoom(conversationId)).emit("typing:update", {
-          conversationId: Number(conversationId),
+          conversationId,
           userId: user.id,
           userName: user.name,
           isTyping: true,
@@ -113,11 +113,11 @@ function setupSocket(io) {
     }));
 
     socket.on("typing:stop", safelyHandle(async ({ conversationId }) => {
-      const membership = await isConversationParticipant(Number(conversationId), user.id);
+      const membership = await isConversationParticipant(conversationId, user.id);
 
       if (membership) {
         socket.to(conversationRoom(conversationId)).emit("typing:update", {
-          conversationId: Number(conversationId),
+          conversationId,
           userId: user.id,
           userName: user.name,
           isTyping: false,

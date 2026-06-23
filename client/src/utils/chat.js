@@ -43,7 +43,7 @@ export function getConversationStatus(conversation, currentUser, presenceByUserI
     ).length;
 
     return onlineCount
-      ? `${conversation.participants.length} members • ${onlineCount} online`
+      ? `${conversation.participants.length} members | ${onlineCount} online`
       : `${conversation.participants.length} members`;
   }
 
@@ -258,7 +258,12 @@ export function upsertMessage(messages, incomingMessage) {
   const existingIndex = messages.findIndex((message) => message.id === incomingMessage.id);
 
   if (existingIndex === -1) {
-    return [...messages, incomingMessage].sort((left, right) => left.id - right.id);
+    return [...messages, incomingMessage].sort((left, right) => {
+      const leftDate = left.createdAt || 0;
+      const rightDate = right.createdAt || 0;
+
+      return new Date(leftDate) - new Date(rightDate);
+    });
   }
 
   const nextMessages = [...messages];

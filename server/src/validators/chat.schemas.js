@@ -1,18 +1,23 @@
 const { z } = require("zod");
 
+const objectIdSchema = z
+  .string()
+  .trim()
+  .regex(/^[0-9a-fA-F]{24}$/, "Invalid id.");
+
 const directConversationSchema = z.object({
-  recipientId: z.coerce.number().int().positive("Recipient id is required."),
+  recipientId: objectIdSchema,
 });
 
 const groupConversationSchema = z.object({
   name: z.string().trim().min(2, "Group name must be at least 2 characters.").max(120),
   participantIds: z
-    .array(z.coerce.number().int().positive())
-    .min(1, "Select at least one teammate for the group."),
+    .array(objectIdSchema)
+    .min(1, "Select at least one person for the group."),
 });
 
 const messageQuerySchema = z.object({
-  cursor: z.coerce.number().int().positive().optional(),
+  cursor: objectIdSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(30),
 });
 
@@ -29,7 +34,7 @@ const messageSchema = z
   .object({
     content: z.string().trim().max(2000).optional().default(""),
     messageType: z.enum(["text", "file"]).optional().default("text"),
-    replyToMessageId: z.coerce.number().int().positive().optional(),
+    replyToMessageId: objectIdSchema.optional(),
     fileName: z.string().trim().max(255).nullish(),
     fileUrl: z.string().trim().max(500).nullish(),
     fileSize: z.coerce.number().int().positive().nullish(),
@@ -65,8 +70,8 @@ const renameGroupSchema = z.object({
 
 const addGroupParticipantsSchema = z.object({
   participantIds: z
-    .array(z.coerce.number().int().positive())
-    .min(1, "Choose at least one teammate to add."),
+    .array(objectIdSchema)
+    .min(1, "Choose at least one person to add."),
 });
 
 const updateGroupRoleSchema = z.object({

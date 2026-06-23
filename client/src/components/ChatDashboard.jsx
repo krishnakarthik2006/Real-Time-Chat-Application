@@ -53,10 +53,7 @@ function getRequestedConversationId() {
     return null;
   }
 
-  const value = new URLSearchParams(window.location.search).get("conversationId");
-  const parsed = Number(value);
-
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  return new URLSearchParams(window.location.search).get("conversationId");
 }
 
 function matchesConversationQuery(conversation, currentUser, normalizedQuery) {

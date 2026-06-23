@@ -34,7 +34,7 @@ class PresenceService {
   }
 
   getOnlineUserIds() {
-    return Array.from(this.userSockets.keys()).map(Number);
+    return Array.from(this.userSockets.keys());
   }
 }
 

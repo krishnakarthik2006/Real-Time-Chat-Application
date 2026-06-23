@@ -1,6 +1,6 @@
-const { query } = require("../config/db");
 const { verifyToken } = require("../utils/auth");
 const AppError = require("../utils/app-error");
+const { findUserById } = require("../services/chat.service");
 
 async function requireAuth(req, _res, next) {
   try {
@@ -12,8 +12,7 @@ async function requireAuth(req, _res, next) {
     }
 
     const payload = verifyToken(token);
-    const rows = await query("SELECT * FROM users WHERE id = ? LIMIT 1", [payload.id]);
-    const user = rows[0];
+    const user = await findUserById(payload.id);
 
     if (!user) {
       throw new AppError("User not found.", 401);

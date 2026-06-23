@@ -18,13 +18,15 @@ function verifyToken(token) {
 }
 
 function sanitizeUser(row) {
+  const id = row?._id ? String(row._id) : String(row.id);
+
   return {
-    id: row.id,
+    id,
     name: row.name,
     email: row.email,
-    avatarSeed: row.avatar_seed,
-    lastSeen: row.last_seen,
-    createdAt: row.created_at,
+    avatarSeed: row.avatarSeed,
+    lastSeen: row.lastSeen,
+    createdAt: row.createdAt,
   };
 }
 

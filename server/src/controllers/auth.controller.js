@@ -36,7 +36,7 @@ const login = asyncHandler(async (req, res) => {
     throw new AppError("Invalid email or password.", 401);
   }
 
-  const passwordsMatch = await bcrypt.compare(payload.password, user.password_hash);
+  const passwordsMatch = await bcrypt.compare(payload.password, user.passwordHash);
 
   if (!passwordsMatch) {
     throw new AppError("Invalid email or password.", 401);

@@ -1,6 +1,6 @@
 # PulseChat
 
-A full-stack real-time chat application built with React, Node.js, Socket.io, and MySQL.
+A full-stack real-time chat application built with React, Node.js, Socket.io, and MongoDB.
 
 ## Included Features
 
@@ -23,17 +23,18 @@ A full-stack real-time chat application built with React, Node.js, Socket.io, an
 - React + Vite
 - Node.js + Express
 - Socket.io
-- MySQL
+- MongoDB + Mongoose
 
-## Important MySQL Note
+## MongoDB Setup Note
 
-`phpMyAdmin` is the management UI, not the database server itself. The app connects directly to your MySQL server using the credentials in `server/.env`.
+The backend connects to MongoDB through the URI in `server/.env`. For a local MongoDB Compass connection, use:
 
-If you are using XAMPP, WAMP, Laragon, or a standalone MySQL install:
+```env
+MONGODB_URI=mongodb://localhost:27017/
+MONGODB_DB_NAME=Real_Time_Chat_Application
+```
 
-1. Keep the MySQL service running.
-2. Configure the database credentials in `server/.env`.
-3. The backend will create the database and tables automatically on startup if the credentials are valid.
+Keep your local MongoDB service running before starting the server. MongoDB will create the database and collections when the app first writes data.
 
 ## Project Structure
 
@@ -77,11 +78,8 @@ CLIENT_URL=http://localhost:5173
 API_BASE_URL=http://localhost:5000
 JWT_SECRET=change-this-secret
 JWT_EXPIRES_IN=7d
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=
-DB_NAME=real_time_chat_app
+MONGODB_URI=mongodb://localhost:27017/
+MONGODB_DB_NAME=Real_Time_Chat_Application
 UPLOAD_DIR=uploads
 MAX_FILE_SIZE_MB=5
 ```
@@ -114,7 +112,7 @@ npm run build
 - Authentication is handled with JWT tokens.
 - The REST API creates users, conversations, messages, and uploads.
 - Socket.io handles presence updates, typing events, delivery updates, and incoming messages.
-- MySQL stores users, conversations, participants, and message history.
+- MongoDB stores users, conversations, participants, and message history.
 
 ## Main API Routes
 
@@ -149,5 +147,5 @@ npm run build
 ## Notes
 
 - Uploaded files are stored in `server/uploads`.
-- The backend auto-creates the schema on startup.
+- MongoDB collections are created automatically when data is inserted.
 - The UI is responsive and works on desktop and mobile layouts.

@@ -102,7 +102,7 @@ const createGroup = asyncHandler(async (req, res) => {
 
 const listMessages = asyncHandler(async (req, res) => {
   const query = parseWithSchema(messageQuerySchema, req.query);
-  const conversationId = Number(req.params.conversationId);
+  const { conversationId } = req.params;
   const messages = await getMessagesForConversation(req.user.id, conversationId, query);
 
   res.json({ messages });
@@ -110,7 +110,7 @@ const listMessages = asyncHandler(async (req, res) => {
 
 const searchMessages = asyncHandler(async (req, res) => {
   const query = parseWithSchema(searchMessagesQuerySchema, req.query);
-  const conversationId = Number(req.params.conversationId);
+  const { conversationId } = req.params;
   const messages = await searchMessagesInConversation(req.user.id, conversationId, query.q, query.limit);
 
   res.json({ messages });
@@ -118,7 +118,7 @@ const searchMessages = asyncHandler(async (req, res) => {
 
 const sendMessage = asyncHandler(async (req, res) => {
   const payload = parseWithSchema(messageSchema, req.body);
-  const conversationId = Number(req.params.conversationId);
+  const { conversationId } = req.params;
   const { message, participantIds } = await createMessage(req.user.id, conversationId, payload);
 
   participantIds.forEach((participantId) => {
@@ -132,8 +132,7 @@ const sendMessage = asyncHandler(async (req, res) => {
 
 const editMessage = asyncHandler(async (req, res) => {
   const payload = parseWithSchema(editMessageSchema, req.body);
-  const conversationId = Number(req.params.conversationId);
-  const messageId = Number(req.params.messageId);
+  const { conversationId, messageId } = req.params;
   const { message, participantIds } = await updateMessage(
     req.user.id,
     conversationId,
@@ -151,8 +150,7 @@ const editMessage = asyncHandler(async (req, res) => {
 });
 
 const removeMessage = asyncHandler(async (req, res) => {
-  const conversationId = Number(req.params.conversationId);
-  const messageId = Number(req.params.messageId);
+  const { conversationId, messageId } = req.params;
   const { message, participantIds } = await deleteMessage(req.user.id, conversationId, messageId);
 
   participantIds.forEach((participantId) => {
@@ -166,7 +164,7 @@ const removeMessage = asyncHandler(async (req, res) => {
 
 const renameGroup = asyncHandler(async (req, res) => {
   const payload = parseWithSchema(renameGroupSchema, req.body);
-  const conversationId = Number(req.params.conversationId);
+  const { conversationId } = req.params;
   const conversation = await renameGroupConversation(req.user.id, conversationId, payload.name);
 
   await emitConversationUpsert(
@@ -180,7 +178,7 @@ const renameGroup = asyncHandler(async (req, res) => {
 
 const addParticipants = asyncHandler(async (req, res) => {
   const payload = parseWithSchema(addGroupParticipantsSchema, req.body);
-  const conversationId = Number(req.params.conversationId);
+  const { conversationId } = req.params;
   const conversation = await addGroupParticipants(req.user.id, conversationId, payload.participantIds);
 
   await emitConversationUpsert(
@@ -194,8 +192,7 @@ const addParticipants = asyncHandler(async (req, res) => {
 
 const updateParticipantRole = asyncHandler(async (req, res) => {
   const payload = parseWithSchema(updateGroupRoleSchema, req.body);
-  const conversationId = Number(req.params.conversationId);
-  const participantId = Number(req.params.participantId);
+  const { conversationId, participantId } = req.params;
   const conversation = await updateGroupParticipantRole(
     req.user.id,
     conversationId,
@@ -213,8 +210,7 @@ const updateParticipantRole = asyncHandler(async (req, res) => {
 });
 
 const removeParticipant = asyncHandler(async (req, res) => {
-  const conversationId = Number(req.params.conversationId);
-  const participantId = Number(req.params.participantId);
+  const { conversationId, participantId } = req.params;
   const { conversation, removedUserId } = await removeGroupParticipant(
     req.user.id,
     conversationId,
@@ -235,7 +231,7 @@ const removeParticipant = asyncHandler(async (req, res) => {
 });
 
 const markRead = asyncHandler(async (req, res) => {
-  const conversationId = Number(req.params.conversationId);
+  const { conversationId } = req.params;
   const { participantIds, seenMessageIds } = await markConversationAsRead(req.user.id, conversationId);
 
   if (seenMessageIds.length) {
