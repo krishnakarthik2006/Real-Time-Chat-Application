@@ -166,7 +166,11 @@ function getParticipant(conversation, userId) {
 }
 
 async function findUserByEmail(email) {
-  return User.findOne({ email: String(email).toLowerCase() }).lean();
+  const user = await User.findOne({ email: String(email).toLowerCase() }).lean();
+  if (user) {
+    user.id = String(user._id);
+  }
+  return user;
 }
 
 async function findUserById(userId) {
@@ -174,18 +178,25 @@ async function findUserById(userId) {
     return null;
   }
 
-  return User.findById(userId).lean();
+  const user = await User.findById(userId).lean();
+  if (user) {
+    user.id = String(user._id);
+  }
+  return user;
 }
 
-async function createUser({ name, email, passwordHash, avatarSeed }) {
+async function createUser({ name, email, passwordHash, avatarSeed, authProvider = "local" }) {
   const user = await User.create({
     name,
     email: email.toLowerCase(),
     passwordHash,
+    authProvider,
     avatarSeed,
   });
 
-  return user.toObject();
+  const obj = user.toObject();
+  obj.id = String(obj._id);
+  return obj;
 }
 
 async function searchUsers(currentUserId, search) {

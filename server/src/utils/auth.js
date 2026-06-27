@@ -2,9 +2,10 @@ const jwt = require("jsonwebtoken");
 const env = require("../config/env");
 
 function signToken(user) {
+  const id = user.id || (user._id ? String(user._id) : "");
   return jwt.sign(
     {
-      id: user.id,
+      id,
       email: user.email,
       name: user.name,
     },

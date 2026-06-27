@@ -1,67 +1,51 @@
 import { useEffect, useMemo, useState } from "react";
+import { X, Crown, UserMinus, ShieldCheck, ShieldOff } from "lucide-react";
 import Avatar from "./Avatar";
 
 export default function GroupManagerPanel({
-  conversation,
-  currentUser,
-  open,
-  searchTerm,
-  candidateUsers,
-  loadingCandidates,
-  onSearchTermChange,
-  onRenameGroup,
-  onAddMembers,
-  onUpdateRole,
-  onRemoveParticipant,
-  onClose,
+  conversation, currentUser, open, searchTerm, candidateUsers, loadingCandidates,
+  onSearchTermChange, onRenameGroup, onAddMembers, onUpdateRole, onRemoveParticipant, onClose,
 }) {
-  const [groupName, setGroupName] = useState(conversation?.name || "");
-  const [selectedUserIds, setSelectedUserIds] = useState([]);
+  const [groupName, setGroupName] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]);
+
   const currentMember = useMemo(
-    () => conversation?.participants?.find((participant) => participant.id === currentUser.id) || null,
+    () => conversation?.participants?.find((p) => p.id === currentUser.id) || null,
     [conversation, currentUser.id],
   );
   const isAdmin = currentMember?.role === "admin";
 
   useEffect(() => {
-    if (open) {
-      setGroupName(conversation?.name || "");
-      setSelectedUserIds([]);
-    }
+    if (open) { setGroupName(conversation?.name || ""); setSelectedIds([]); }
   }, [open, conversation?.id, conversation?.name]);
 
-  if (!open || !conversation) {
-    return null;
-  }
+  if (!open || !conversation) return null;
 
-  const participantIds = new Set(conversation.participants.map((participant) => participant.id));
-  const visibleCandidates = candidateUsers.filter((user) => !participantIds.has(user.id));
+  const participantIds = new Set(conversation.participants.map((p) => p.id));
+  const candidates = candidateUsers.filter((u) => !participantIds.has(u.id));
 
   return (
     <section className="group-panel">
       <div className="group-panel__header">
         <div>
           <p className="eyebrow">Group</p>
-          <h3>People and settings</h3>
+          <h3>Members & settings</h3>
         </div>
-        <button className="text-button" type="button" onClick={onClose}>
-          Close
+        <button className="icon-button" type="button" onClick={onClose} aria-label="Close group panel">
+          <X size={15} />
         </button>
       </div>
 
+      {/* Rename */}
       {isAdmin ? (
         <div className="group-panel__block">
-          <label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: "var(--text-sm)", fontWeight: 500 }}>
             <span>Group name</span>
-            <input
-              type="text"
-              value={groupName}
-              onChange={(event) => setGroupName(event.target.value)}
-              placeholder="Study Circle"
-            />
+            <input type="text" value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="Group name" />
           </label>
           <button
             className="secondary-button"
+            style={{ height: 32, padding: "0 14px", fontSize: "var(--text-xs)", alignSelf: "flex-start" }}
             type="button"
             disabled={!groupName.trim() || groupName.trim() === conversation.name}
             onClick={() => onRenameGroup(groupName.trim())}
@@ -71,113 +55,101 @@ export default function GroupManagerPanel({
         </div>
       ) : (
         <div className="group-panel__block">
-          <p className="helper-copy">Only group admins can rename the chat or manage members.</p>
+          <p className="helper-copy">Only admins can rename the group or manage members.</p>
         </div>
       )}
 
+      {/* Member list */}
       <div className="group-panel__block">
         <div className="group-panel__section-title">
-          <strong>Members</strong>
+          <span>Members</span>
           <span>{conversation.participants.length}</span>
         </div>
         <div className="group-panel__members">
-          {conversation.participants.map((participant) => (
-            <div key={participant.id} className="group-member-row">
+          {conversation.participants.map((p) => (
+            <div key={p.id} className="group-member-row">
               <div className="group-member-row__identity">
-                <Avatar name={participant.name} seed={participant.avatarSeed} small />
+                <Avatar name={p.name} seed={p.avatarSeed} size="small" />
                 <div>
-                  <strong>
-                    {participant.name}
-                    {participant.id === currentUser.id ? " (You)" : ""}
-                  </strong>
-                  <span>{participant.email}</span>
+                  <strong>{p.name}{p.id === currentUser.id ? " (You)" : ""}</strong>
+                  <span>{p.email}</span>
                 </div>
               </div>
               <div className="group-member-row__actions">
-                <span className="pill">{participant.role}</span>
-                {isAdmin && participant.id !== currentUser.id ? (
+                {p.role === "admin" && (
+                  <span className="pill pill--accent" style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                    <Crown size={10} /> Admin
+                  </span>
+                )}
+                {isAdmin && p.id !== currentUser.id && (
                   <>
                     <button
-                      className="text-button"
+                      className="icon-button"
                       type="button"
-                      onClick={() => onUpdateRole(participant.id, participant.role === "admin" ? "member" : "admin")}
+                      title={p.role === "admin" ? "Remove admin" : "Make admin"}
+                      onClick={() => onUpdateRole(p.id, p.role === "admin" ? "member" : "admin")}
                     >
-                      {participant.role === "admin" ? "Make Member" : "Make Admin"}
+                      {p.role === "admin" ? <ShieldOff size={13} /> : <ShieldCheck size={13} />}
                     </button>
                     <button
-                      className="text-button text-button--danger"
+                      className="icon-button"
                       type="button"
-                      onClick={() => onRemoveParticipant(participant.id)}
+                      title="Remove from group"
+                      style={{ color: "var(--clr-red)" }}
+                      onClick={() => onRemoveParticipant(p.id)}
                     >
-                      Remove
+                      <UserMinus size={13} />
                     </button>
                   </>
-                ) : null}
+                )}
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {isAdmin ? (
+      {/* Add people */}
+      {isAdmin && (
         <div className="group-panel__block">
-          <div className="group-panel__section-title">
-            <strong>Add people</strong>
-          </div>
+          <div className="group-panel__section-title"><span>Add people</span></div>
           <input
-            type="search"
-            placeholder="Search people to add"
-            value={searchTerm}
-            onChange={(event) => onSearchTermChange(event.target.value)}
+            type="search" placeholder="Search people…"
+            value={searchTerm} onChange={(e) => onSearchTermChange(e.target.value)}
+            style={{ height: 32, fontSize: "var(--text-sm)" }}
           />
-
           <div className="group-panel__candidates">
-            {loadingCandidates ? <p className="helper-copy">Loading people...</p> : null}
-            {!loadingCandidates && !visibleCandidates.length ? (
-              <p className="helper-copy">No additional people matched that search.</p>
-            ) : null}
-
-            {visibleCandidates.map((user) => {
-              const selected = selectedUserIds.includes(user.id);
-
+            {loadingCandidates && <p className="helper-copy">Loading…</p>}
+            {!loadingCandidates && !candidates.length && <p className="helper-copy">No people to add.</p>}
+            {candidates.map((u) => {
+              const sel = selectedIds.includes(u.id);
               return (
                 <button
-                  key={user.id}
-                  className={`group-user ${selected ? "group-user--selected" : ""}`}
+                  key={u.id}
+                  className={`group-user ${sel ? "group-user--selected" : ""}`}
                   type="button"
-                  onClick={() => setSelectedUserIds((current) => (
-                    current.includes(user.id)
-                      ? current.filter((id) => id !== user.id)
-                      : [...current, user.id]
-                  ))}
+                  onClick={() => setSelectedIds((prev) => sel ? prev.filter((id) => id !== u.id) : [...prev, u.id])}
                 >
-                  <Avatar name={user.name} seed={user.avatarSeed} small />
-                  <div>
-                    <strong>{user.name}</strong>
-                    <span>{user.email}</span>
-                  </div>
-                  <span className="pill">{selected ? "Selected" : "Select"}</span>
+                  <Avatar name={u.name} seed={u.avatarSeed} size="small" />
+                  <div><strong>{u.name}</strong><span>{u.email}</span></div>
+                  <span className={`pill ${sel ? "pill--accent" : ""}`}>{sel ? "Selected" : "Select"}</span>
                 </button>
               );
             })}
           </div>
-
           <button
-            className="secondary-button"
+            className="primary-button"
+            style={{ height: 32, padding: "0 14px", fontSize: "var(--text-xs)", alignSelf: "flex-start" }}
             type="button"
-            disabled={!selectedUserIds.length}
+            disabled={!selectedIds.length}
             onClick={async () => {
-              const added = await onAddMembers(selectedUserIds);
-
-              if (added !== false) {
-                setSelectedUserIds([]);
-              }
+              const ok = await onAddMembers(selectedIds);
+              if (ok !== false) setSelectedIds([]);
             }}
           >
-            Add Selected People
+            Add {selectedIds.length > 0 ? `(${selectedIds.length})` : "People"}
           </button>
         </div>
-      ) : null}
+      )}
     </section>
   );
 }

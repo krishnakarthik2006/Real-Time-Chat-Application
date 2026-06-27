@@ -1,225 +1,144 @@
 import { useEffect, useRef, useState } from "react";
+import { Paperclip, SendHorizonal, X } from "lucide-react";
 import { formatFileSize, formatInlinePreview } from "../utils/chat";
 
-function getDraftStorageKey(conversationId) {
-  return `pulse-chat-draft-${conversationId}`;
-}
+function getDraftKey(cid) { return `pulse-draft-${cid}`; }
 
-export default function MessageComposer({
-  conversationId,
-  socket,
-  onSend,
-  disabled,
-  replyingTo,
-  onCancelReply,
-  compact = false,
-}) {
+export default function MessageComposer({ conversationId, socket, onSend, disabled, replyingTo, onCancelReply }) {
   const [content, setContent] = useState("");
   const [file, setFile] = useState(null);
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  function stopTyping() {
+  function emitTyping(start) {
     if (socket && conversationId) {
-      socket.emit("typing:stop", { conversationId });
+      socket.emit(start ? "typing:start" : "typing:stop", { conversationId });
     }
   }
 
-  async function submitMessage() {
-    if ((!content.trim() && !file) || disabled) {
-      return;
-    }
-
-    const sent = await onSend(conversationId, {
+  async function submit() {
+    if ((!content.trim() && !file) || disabled) return;
+    const result = await onSend(conversationId, {
       content: content.trim(),
       file,
       replyToMessageId: replyingTo?.id,
     });
-
-    if (sent === false) {
-      return;
-    }
-
+    if (result === false) return;
     clearTimeout(typingTimeoutRef.current);
-    stopTyping();
+    emitTyping(false);
     setContent("");
     setFile(null);
-    window.localStorage.removeItem(getDraftStorageKey(conversationId));
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-
+    localStorage.removeItem(getDraftKey(conversationId));
+    if (fileInputRef.current) fileInputRef.current.value = "";
     textareaRef.current?.focus();
   }
 
+  // Restore draft + reset file on conversation change
   useEffect(() => {
-    return () => {
-      clearTimeout(typingTimeoutRef.current);
-      stopTyping();
-    };
-  }, [conversationId, socket]);
-
-  useEffect(() => {
-    const nextDraft = conversationId
-      ? window.localStorage.getItem(getDraftStorageKey(conversationId)) || ""
-      : "";
-
-    setContent(nextDraft);
+    setContent(conversationId ? localStorage.getItem(getDraftKey(conversationId)) || "" : "");
     setFile(null);
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-
+    if (fileInputRef.current) fileInputRef.current.value = "";
     textareaRef.current?.focus();
   }, [conversationId]);
 
+  // Save draft
   useEffect(() => {
-    if (!conversationId) {
-      return;
-    }
-
-    if (!content.trim()) {
-      window.localStorage.removeItem(getDraftStorageKey(conversationId));
-      return;
-    }
-
-    window.localStorage.setItem(getDraftStorageKey(conversationId), content);
+    if (!conversationId) return;
+    if (content.trim()) localStorage.setItem(getDraftKey(conversationId), content);
+    else localStorage.removeItem(getDraftKey(conversationId));
   }, [content, conversationId]);
 
+  // Auto-resize textarea
   useEffect(() => {
-    if (!textareaRef.current) {
-      return;
-    }
-
-    textareaRef.current.style.height = "0px";
-    textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "0";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   }, [content]);
 
-  function handleContentChange(value) {
+  // Cleanup on unmount
+  useEffect(() => () => { clearTimeout(typingTimeoutRef.current); emitTyping(false); }, [conversationId, socket]);
+
+  function handleChange(value) {
     setContent(value);
-
-    if (!socket || !conversationId) {
-      return;
-    }
-
-    socket.emit("typing:start", { conversationId });
+    emitTyping(true);
     clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(() => {
-      stopTyping();
-    }, 1200);
+    typingTimeoutRef.current = setTimeout(() => emitTyping(false), 1500);
   }
 
-  function handleSubmit(event) {
-    event.preventDefault();
-    void submitMessage();
-  }
-
-  function handleKeyDown(event) {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      void submitMessage();
-    }
-  }
+  const canSend = !disabled && (content.trim().length > 0 || file !== null);
 
   return (
-    <form className={`composer ${compact ? "composer--compact" : ""}`} onSubmit={handleSubmit}>
-      {replyingTo ? (
+    <form className="composer" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+      {replyingTo && (
         <div className="reply-strip">
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <strong>Replying to {replyingTo.sender?.name || "message"}</strong>
             <p>{formatInlinePreview(replyingTo)}</p>
           </div>
-          <button className="icon-button" type="button" onClick={onCancelReply}>
-            Close
+          <button className="icon-button" type="button" onClick={onCancelReply} aria-label="Cancel reply">
+            <X size={14} />
           </button>
         </div>
-      ) : null}
+      )}
 
-      {file ? (
-        <div className="file-preview">
-          <div>
+      {file && (
+        <div className="file-preview-strip">
+          <div style={{ flex: 1, minWidth: 0 }}>
             <strong>{file.name}</strong>
-            <span className="file-preview__meta">{formatFileSize(file.size)}</span>
+            <span className="file-preview-strip__meta">{formatFileSize(file.size)}</span>
           </div>
           <button
             className="icon-button"
             type="button"
-            onClick={() => {
-              setFile(null);
-              if (fileInputRef.current) {
-                fileInputRef.current.value = "";
-              }
-            }}
+            aria-label="Remove file"
+            onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
           >
-            Remove
+            <X size={14} />
           </button>
         </div>
-      ) : null}
+      )}
 
       <div className="composer-row">
-        <label
-          className="upload-button upload-button--icon"
-          htmlFor="file-upload"
-          aria-label="Attach file"
-          title="Attach file"
-        >
-          <svg className="upload-button__icon" viewBox="0 0 20 20" aria-hidden="true">
-            <path
-              d="M7.5 15.5V6.75C7.5 4.96 8.96 3.5 10.75 3.5C12.54 3.5 14 4.96 14 6.75V15.25C14 16.77 12.77 18 11.25 18C9.73 18 8.5 16.77 8.5 15.25V7.5"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="1.6"
-            />
-          </svg>
+        <label className="upload-button--icon" htmlFor="composer-file" aria-label="Attach file" title="Attach file">
+          <Paperclip size={17} className="upload-button__icon" />
         </label>
         <input
           ref={fileInputRef}
-          id="file-upload"
+          id="composer-file"
           type="file"
-          onChange={(event) => setFile(event.target.files?.[0] || null)}
+          onChange={(e) => setFile(e.target.files?.[0] || null)}
           hidden
         />
 
         <textarea
           ref={textareaRef}
-          className="composer-input composer-input--multiline"
-          placeholder={replyingTo ? "Write a reply" : "Type a message"}
+          className="composer-input"
+          placeholder={replyingTo ? "Write a reply…" : "Type a message…"}
           value={content}
           maxLength={2000}
           rows={1}
-          onChange={(event) => handleContentChange(event.target.value)}
-          onKeyDown={handleKeyDown}
+          onChange={(e) => handleChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void submit(); }
+          }}
         />
 
         <button
           className="send-button"
           type="submit"
-          disabled={disabled || (!content.trim() && !file)}
-          aria-label={disabled ? "Sending message" : "Send message"}
-          title={disabled ? "Sending message" : "Send message"}
+          disabled={!canSend}
+          aria-label="Send message"
+          title="Send"
         >
-          {disabled ? (
-            <span className="send-button__label">...</span>
-          ) : (
-            <svg className="send-button__icon" viewBox="0 0 20 20" aria-hidden="true">
-              <path d="M3 10L16 4L12.5 16L9 11.5L3 10Z" fill="currentColor" />
-            </svg>
-          )}
+          <SendHorizonal size={15} className="send-button__icon" />
         </button>
       </div>
 
       <div className="composer-meta">
-        <span className="composer-hint">Press Enter to send and Shift+Enter for a new line.</span>
-        <span className="composer-hint">
-          {content.trim() ? "Draft saved locally" : "Ready to send"}
-          {" • "}
-          {content.length}/2000
-        </span>
+        <span className="composer-hint">Enter to send · Shift+Enter for new line</span>
+        <span className="composer-hint">{content.length}/2000</span>
       </div>
     </form>
   );

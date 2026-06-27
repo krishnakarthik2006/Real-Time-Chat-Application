@@ -71,6 +71,7 @@ export function AuthProvider({ children }) {
     initializing,
     login: (payload) => authenticate("/auth/login", payload),
     register: (payload) => authenticate("/auth/register", payload),
+    loginWithGoogle: (credential) => authenticate("/auth/google", { credential }),
     logout,
   };
 

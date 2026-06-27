@@ -32,14 +32,54 @@ const login = asyncHandler(async (req, res) => {
   const payload = parseWithSchema(loginSchema, req.body);
   const user = await findUserByEmail(payload.email);
 
-  if (!user) {
-    throw new AppError("Invalid email or password.", 401);
+  if (!user || user.authProvider === "google") {
+    // If the user signed up via Google, they don't have a password for local login
+    throw new AppError("Invalid email or password. Please use Google Sign-in if you registered via Google.", 401);
   }
 
   const passwordsMatch = await bcrypt.compare(payload.password, user.passwordHash);
 
   if (!passwordsMatch) {
     throw new AppError("Invalid email or password.", 401);
+  }
+
+  res.json({
+    token: signToken(user),
+    user: sanitizeUser(user),
+  });
+});
+
+const googleAuth = asyncHandler(async (req, res) => {
+  const { credential } = req.body;
+  if (!credential) {
+    throw new AppError("Google token credential is required", 400);
+  }
+
+  const { OAuth2Client } = require("google-auth-library");
+  const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+  
+  let payload;
+  try {
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    payload = ticket.getPayload();
+  } catch (error) {
+    throw new AppError("Invalid Google token", 401);
+  }
+
+  const { email, name } = payload;
+  let user = await findUserByEmail(email);
+
+  if (!user) {
+    user = await createUser({
+      name,
+      email,
+      passwordHash: undefined,
+      authProvider: "google",
+      avatarSeed: email.toLowerCase(),
+    });
   }
 
   res.json({
@@ -57,5 +97,6 @@ const me = asyncHandler(async (req, res) => {
 module.exports = {
   register,
   login,
+  googleAuth,
   me,
 };

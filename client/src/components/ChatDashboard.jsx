@@ -1135,7 +1135,7 @@ export default memo(function ChatDashboard() {
 
   return (
     <>
-      <main className={`app-shell ${isMobileLayout && mobilePane === "chat" ? "app-shell--chat-focus" : ""}`}>
+      <main className={`app-shell ${isMobileLayout ? (mobilePane === "chat" ? "app-shell--chat-focus" : "app-shell--sidebar-focus") : ""}`}>
         <Sidebar
           currentUser={user}
           pinnedConversations={pinnedConversations}
@@ -1250,6 +1250,8 @@ export default memo(function ChatDashboard() {
                 toggleConversationArchived(selectedConversation.id);
               }
             }}
+            onAddReaction={null}
+            onRemoveReaction={null}
           />
         </section>
       </main>

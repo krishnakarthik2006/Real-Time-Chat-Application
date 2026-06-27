@@ -20,7 +20,12 @@ const userSchema = new Schema(
     },
     passwordHash: {
       type: String,
-      required: true,
+      required: false, // Optional for Google OAuth users
+    },
+    authProvider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
     },
     avatarSeed: {
       type: String,
