@@ -137,7 +137,6 @@ export default function MessageComposer({ conversationId, socket, onSend, disabl
       </div>
 
       <div className="composer-meta">
-        <span className="composer-hint">Enter to send · Shift+Enter for new line</span>
         <span className="composer-hint">{content.length}/2000</span>
       </div>
     </form>

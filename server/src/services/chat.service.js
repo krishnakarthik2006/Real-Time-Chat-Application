@@ -325,8 +325,8 @@ async function mapConversationForUser(userId, conversation) {
 }
 
 /**
- * Optimised: single aggregation replaces N parallel (countDocuments + findOne) pairs.
- * Fetches last-message and unread-count for every conversation in one pipeline.
+ * Fetches last-message and unread-count for every conversation using two
+ * bulk queries instead of 2N individual queries.
  */
 async function getConversationsForUser(userId) {
   const userObjectId = toObjectId(userId, "User");
@@ -342,76 +342,69 @@ async function getConversationsForUser(userId) {
 
   const conversationIds = conversations.map((c) => c._id);
 
-  // Fetch all last-messages and unread counts in two bulk queries instead of 2N queries
-  const [lastMessages, unreadAgg] = await Promise.all([
-    // One query: latest message per conversation
-    populateMessageQuery(
-      Message.aggregate([
-        { $match: { conversation: { $in: conversationIds } } },
-        { $sort: { _id: -1 } },
-        {
-          $group: {
-            _id: "$conversation",
-            msgId: { $first: "$_id" },
-          },
-        },
-      ]),
-    ).then(async (groups) => {
-      if (!groups.length) return new Map();
-      const ids = groups.map((g) => g.msgId);
-      const msgs = await populateMessageQuery(
-        Message.find({ _id: { $in: ids } }),
-      ).lean();
-      const map = new Map();
-      msgs.forEach((m) => map.set(String(m.conversation), m));
-      return map;
-    }),
-
-    // One aggregation: unread count per conversation for this user
-    Message.aggregate([
-      {
-        $match: {
-          conversation: { $in: conversationIds },
-          sender: { $ne: userObjectId },
-        },
-      },
-      {
-        $group: {
-          _id: "$conversation",
-          total: { $sum: 1 },
-          // count only messages newer than lastReadMessage (handled below per-participant)
-          allIds: { $push: "$_id" },
-        },
-      },
-    ]),
+  // ── 1. Last message per conversation ────────────────────────────────────
+  // Aggregate returns plain objects — populate separately via Message.find
+  const lastMsgGroups = await Message.aggregate([
+    { $match: { conversation: { $in: conversationIds } } },
+    { $sort: { _id: -1 } },
+    { $group: { _id: "$conversation", msgId: { $first: "$_id" } } },
   ]);
 
-  // Build a map of conversationId -> lastReadMessageId for this user
+  const lastMessageMap = new Map();
+  if (lastMsgGroups.length) {
+    const lastMsgIds = lastMsgGroups.map((g) => g.msgId);
+    const lastMsgs = await populateMessageQuery(
+      Message.find({ _id: { $in: lastMsgIds } }),
+    ).lean();
+    lastMsgs.forEach((m) => lastMessageMap.set(String(m.conversation), m));
+  }
+
+  // ── 2. Unread count per conversation ────────────────────────────────────
+  // Build per-user lastReadMessage cursor map
   const lastReadMap = new Map();
   conversations.forEach((conv) => {
     const p = getParticipant(conv, userId);
     if (p?.lastReadMessage) {
-      lastReadMap.set(String(conv._id), String(p.lastReadMessage));
+      lastReadMap.set(String(conv._id), p.lastReadMessage);
     }
   });
 
-  // Convert unread agg to per-conversation unread counts
+  const unreadAgg = await Message.aggregate([
+    {
+      $match: {
+        conversation: { $in: conversationIds },
+        sender: { $ne: userObjectId },
+      },
+    },
+    {
+      $group: {
+        _id: "$conversation",
+        allIds: { $push: "$_id" },
+      },
+    },
+  ]);
+
   const unreadMap = new Map();
   unreadAgg.forEach(({ _id, allIds }) => {
-    const convKey = String(_id);
-    const lastRead = lastReadMap.get(convKey);
+    const key = String(_id);
+    const lastRead = lastReadMap.get(key);
     if (!lastRead) {
-      unreadMap.set(convKey, allIds.length);
+      unreadMap.set(key, allIds.length);
     } else {
-      // Count only messages with _id > lastReadMessage
-      const count = allIds.filter((id) => String(id) > lastRead).length;
-      unreadMap.set(convKey, count);
+      const lastReadStr = String(lastRead);
+      const count = allIds.filter((id) => String(id) > lastReadStr).length;
+      unreadMap.set(key, count);
     }
   });
 
+  // ── 3. Assemble ──────────────────────────────────────────────────────────
   const mapped = conversations.map((conv) => {
     const key = String(conv._id);
-    return mapConversation(conv, lastMessages.get ? lastMessages.get(key) || null : null, unreadMap.get(key) || 0);
+    return mapConversation(
+      conv,
+      lastMessageMap.get(key) || null,
+      unreadMap.get(key) || 0,
+    );
   });
 
   return mapped.sort((a, b) => {
