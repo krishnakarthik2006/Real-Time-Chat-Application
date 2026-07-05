@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { LogOut, UserPlus, MoreVertical, Pin, PinOff, BellOff, Bell, Archive, ArchiveRestore, Search } from "lucide-react";
+import { LogOut, UserPlus, MoreVertical, Pin, PinOff, BellOff, Bell, Archive, ArchiveRestore, Search, Settings } from "lucide-react";
 import Avatar from "./Avatar";
-import ThemeSelector from "./ThemeSelector";
+import SettingsModal from "./SettingsModal";
 import { formatListTime, formatMessagePreview, getConversationTitle } from "../utils/chat";
 
 const FILTER_OPTIONS = [
@@ -115,6 +115,7 @@ export default function Sidebar({
   onEnableNotifications, onTogglePinConversation, onToggleMuteConversation,
   onToggleArchiveConversation, onLogout,
 }) {
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const filterCounts = {
     all: conversationStats.total,
     unread: conversationStats.unread,
@@ -139,6 +140,9 @@ export default function Sidebar({
         <div className="sidebar-top__actions">
           <button className="icon-button" type="button" onClick={onOpenGroupModal} aria-label="New group" title="New Group">
             <UserPlus size={18} />
+          </button>
+          <button className="icon-button" type="button" onClick={() => setSettingsOpen(true)} aria-label="Settings" title="Settings">
+            <Settings size={18} />
           </button>
           <button className="icon-button" type="button" onClick={onLogout} aria-label="Log out" title="Log Out">
             <LogOut size={18} />
@@ -266,7 +270,17 @@ export default function Sidebar({
         </div>
       </div>
 
-      <ThemeSelector />
+      <SettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        notificationsSupported={notificationsSupported}
+        notificationPermission={notificationPermission}
+        onEnableNotifications={() => {
+          onEnableNotifications();
+          setSettingsOpen(false);
+        }}
+        onLogout={onLogout}
+      />
     </aside>
   );
 }

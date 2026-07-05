@@ -11,6 +11,7 @@ const {
   renameGroupSchema,
   addGroupParticipantsSchema,
   updateGroupRoleSchema,
+  reactionSchema,
 } = require("../validators/chat.schemas");
 const {
   searchUsers,
@@ -28,6 +29,9 @@ const {
   updateGroupParticipantRole,
   removeGroupParticipant,
   markConversationAsRead,
+  addReactionToMessage,
+  removeReactionFromMessage,
+  getConversationParticipantIds: getConversationParticipantIdsFromService,
 } = require("../services/chat.service");
 const { userRoom, conversationRoom } = require("../services/presence.service");
 
@@ -250,6 +254,31 @@ const markRead = asyncHandler(async (req, res) => {
   });
 });
 
+const addReaction = asyncHandler(async (req, res) => {
+  const payload = parseWithSchema(reactionSchema, req.body);
+  const { conversationId, messageId } = req.params;
+  const message = await addReactionToMessage(req.user.id, conversationId, messageId, payload.emoji);
+
+  const allParticipantIds = await getConversationParticipantIdsFromService(conversationId);
+  allParticipantIds.forEach((participantId) => {
+    req.io.to(userRoom(participantId)).emit("message:update", message);
+  });
+
+  res.json({ message });
+});
+
+const removeReaction = asyncHandler(async (req, res) => {
+  const { conversationId, messageId, emoji } = req.params;
+  const message = await removeReactionFromMessage(req.user.id, conversationId, messageId, decodeURIComponent(emoji));
+
+  const allParticipantIds = await getConversationParticipantIdsFromService(conversationId);
+  allParticipantIds.forEach((participantId) => {
+    req.io.to(userRoom(participantId)).emit("message:update", message);
+  });
+
+  res.json({ message });
+});
+
 module.exports = {
   listUsers,
   listConversations,
@@ -265,4 +294,6 @@ module.exports = {
   updateParticipantRole,
   removeParticipant,
   markRead,
+  addReaction,
+  removeReaction,
 };

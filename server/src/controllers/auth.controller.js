@@ -1,10 +1,11 @@
 const bcrypt = require("bcryptjs");
 const asyncHandler = require("../utils/async-handler");
 const { parseWithSchema } = require("../utils/validation");
-const { registerSchema, loginSchema } = require("../validators/auth.schemas");
+const { registerSchema, loginSchema, updateProfileSchema, changePasswordSchema } = require("../validators/auth.schemas");
 const { createUser, findUserByEmail } = require("../services/chat.service");
 const { sanitizeUser, signToken } = require("../utils/auth");
 const AppError = require("../utils/app-error");
+const { User } = require("../models/chat.models");
 
 const register = asyncHandler(async (req, res) => {
   const payload = parseWithSchema(registerSchema, req.body);
@@ -94,9 +95,43 @@ const me = asyncHandler(async (req, res) => {
   });
 });
 
+const updateProfile = asyncHandler(async (req, res) => {
+  const payload = parseWithSchema(updateProfileSchema, req.body);
+
+  const updated = await User.findByIdAndUpdate(
+    req.user._id,
+    { $set: { name: payload.name } },
+    { new: true, runValidators: true },
+  ).lean();
+
+  if (!updated) throw new AppError("User not found.", 404);
+
+  res.json({ user: sanitizeUser({ ...updated, id: String(updated._id) }) });
+});
+
+const changePassword = asyncHandler(async (req, res) => {
+  const payload = parseWithSchema(changePasswordSchema, req.body);
+
+  if (req.user.authProvider === "google") {
+    throw new AppError("Google accounts cannot set a password here.", 400);
+  }
+
+  const user = await User.findById(req.user._id).lean();
+  const match = await bcrypt.compare(payload.currentPassword, user.passwordHash);
+
+  if (!match) throw new AppError("Current password is incorrect.", 401);
+
+  const newHash = await bcrypt.hash(payload.newPassword, 10);
+  await User.findByIdAndUpdate(req.user._id, { $set: { passwordHash: newHash } });
+
+  res.json({ message: "Password updated successfully." });
+});
+
 module.exports = {
   register,
   login,
   googleAuth,
   me,
+  updateProfile,
+  changePassword,
 };

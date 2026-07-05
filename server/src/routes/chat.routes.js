@@ -13,6 +13,8 @@ const {
   updateParticipantRole,
   removeParticipant,
   markRead,
+  addReaction,
+  removeReaction,
 } = require("../controllers/chat.controller");
 const { requireAuth } = require("../middleware/auth.middleware");
 
@@ -32,5 +34,7 @@ router.post("/:conversationId/messages", sendMessage);
 router.patch("/:conversationId/messages/:messageId", editMessage);
 router.delete("/:conversationId/messages/:messageId", removeMessage);
 router.post("/:conversationId/read", markRead);
+router.post("/:conversationId/messages/:messageId/reactions", addReaction);
+router.delete("/:conversationId/messages/:messageId/reactions/:emoji", removeReaction);
 
 module.exports = router;

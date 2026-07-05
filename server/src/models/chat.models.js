@@ -102,6 +102,26 @@ const conversationSchema = new Schema(
   },
 );
 
+const reactionSchema = new Schema(
+  {
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    emoji: {
+      type: String,
+      required: true,
+      maxlength: 12,
+    },
+    reactedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: false },
+);
+
 const messageSchema = new Schema(
   {
     conversation: {
@@ -156,6 +176,10 @@ const messageSchema = new Schema(
       default: null,
       index: true,
     },
+    reactions: {
+      type: [reactionSchema],
+      default: [],
+    },
     isDeleted: {
       type: Boolean,
       default: false,
@@ -176,6 +200,11 @@ const messageSchema = new Schema(
 
 conversationSchema.index({ "participants.user": 1, updatedAt: -1 });
 messageSchema.index({ conversation: 1, _id: -1 });
+// Compound index for markPendingDirectMessagesDelivered:
+// filters by conversation + sender + status in one index scan
+messageSchema.index({ conversation: 1, sender: 1, status: 1 });
+// Compound index for getConversationLastMessage (sort by _id desc per conversation)
+messageSchema.index({ conversation: 1, isDeleted: 1, _id: -1 });
 
 const User = mongoose.model("User", userSchema);
 const Conversation = mongoose.model("Conversation", conversationSchema);

@@ -1,16 +1,18 @@
-import { Fragment, useEffect, useRef } from "react";
-import { Search, X, Users, Pin, PinOff, BellOff, Bell, Archive, ArchiveRestore, ChevronLeft } from "lucide-react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { Search, X, Users, Pin, PinOff, BellOff, Bell, Archive, ArchiveRestore, ChevronLeft, User } from "lucide-react";
 import Avatar from "./Avatar";
 import GroupManagerPanel from "./GroupManagerPanel";
 import MessageBubble from "./MessageBubble";
 import MessageComposer from "./MessageComposer";
 import MessageSearchPanel from "./MessageSearchPanel";
 import TypingIndicator from "./TypingIndicator";
+import UserProfilePanel from "./UserProfilePanel";
 import { formatDayDivider, getConversationStatus, getConversationTitle, isSameDay } from "../utils/chat";
 
 export default function ChatWindow({
   currentUser, conversation, conversationPreference, messages, typingUsers,
-  loadingMessages, sendingMessage, presenceByUserId, socket,
+  loadingMessages, loadingMoreMessages, hasMoreMessages, onLoadMoreMessages,
+  sendingMessage, presenceByUserId, socket,
   onSendMessage, searchPanelOpen, searchQuery, searchResults, searchingMessages,
   onToggleSearchPanel, onSearchQueryChange, onSelectSearchMessage, onClearSearch,
   highlightedMessageId, replyTarget, onReplyToMessage, onCancelReply,
@@ -26,6 +28,7 @@ export default function ChatWindow({
   const endRef = useRef(null);
   const autoScrollRef = useRef(true);
   const prevConvIdRef = useRef(conversation?.id || null);
+  const [profilePanelUser, setProfilePanelUser] = useState(null);
 
   // Track scroll intent
   useEffect(() => {
@@ -83,13 +86,28 @@ export default function ChatWindow({
               <ChevronLeft size={18} />
             </button>
           )}
-          <div style={{ position: "relative", flexShrink: 0 }}>
-            <Avatar name={title} seed={isGroup ? conversation.name : partner?.avatarSeed} />
-            {!isGroup && (
-              <span className={`presence-dot${isPartnerOnline ? " presence-dot--online" : ""}`}
-                style={{ borderColor: "var(--clr-surface)" }} />
-            )}
-          </div>
+          <button
+            className="chat-title__avatar-btn"
+            type="button"
+            title={isGroup ? "View group info" : `View ${title}'s profile`}
+            onClick={() => {
+              if (isGroup) {
+                onToggleGroupPanel();
+              } else if (partner) {
+                setProfilePanelUser(
+                  profilePanelUser?.id === partner.id ? null : partner,
+                );
+              }
+            }}
+          >
+            <div style={{ position: "relative", flexShrink: 0 }}>
+              <Avatar name={title} seed={isGroup ? conversation.name : partner?.avatarSeed} />
+              {!isGroup && (
+                <span className={`presence-dot${isPartnerOnline ? " presence-dot--online" : ""}`}
+                  style={{ borderColor: "var(--clr-surface)" }} />
+              )}
+            </div>
+          </button>
           <div className="chat-title__copy">
             <div className="chat-title__meta">
               <h2>{title}</h2>
@@ -159,8 +177,32 @@ export default function ChatWindow({
         onRemoveParticipant={onRemoveGroupParticipant} onClose={onToggleGroupPanel}
       />
 
+      {/* User profile panel (1:1 chats) */}
+      {!isGroup && profilePanelUser && (
+        <UserProfilePanel
+          user={profilePanelUser}
+          isOnline={Boolean(presenceByUserId[profilePanelUser.id]?.isOnline)}
+          onClose={() => setProfilePanelUser(null)}
+        />
+      )}
+
       {/* Message list */}
       <div ref={listRef} className="message-list">
+        {/* Load older messages */}
+        {hasMoreMessages && (
+          <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 4px" }}>
+            <button
+              className="secondary-button"
+              type="button"
+              style={{ height: 28, padding: "0 14px", fontSize: "var(--text-xs)" }}
+              onClick={onLoadMoreMessages}
+              disabled={loadingMoreMessages}
+            >
+              {loadingMoreMessages ? "Loading…" : "Load older messages"}
+            </button>
+          </div>
+        )}
+
         {loadingMessages && (
           <div style={{ display: "flex", justifyContent: "center", padding: "20px 0" }}>
             <div className="loader-spinner" />

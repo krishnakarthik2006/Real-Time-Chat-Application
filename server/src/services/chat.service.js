@@ -79,6 +79,16 @@ function mapReplyMessage(message) {
   };
 }
 
+function mapReactions(reactions) {
+  if (!Array.isArray(reactions)) return [];
+  return reactions.map((r) => ({
+    userId: normalizeId(r.user?._id || r.user),
+    userName: r.user?.name || "",
+    emoji: r.emoji,
+    reactedAt: r.reactedAt,
+  }));
+}
+
 function mapMessageDoc(message) {
   const isDeleted = Boolean(message.isDeleted);
 
@@ -91,6 +101,7 @@ function mapMessageDoc(message) {
     attachment: isDeleted ? null : mapAttachment(message),
     status: message.status,
     replyTo: mapReplyMessage(message.replyToMessage),
+    reactions: isDeleted ? [] : mapReactions(message.reactions),
     isDeleted,
     deletedAt: message.deletedAt,
     editedAt: message.editedAt,
@@ -148,6 +159,7 @@ function mapConversation(conversation, lastMessage, unreadCount) {
 function populateMessageQuery(query) {
   return query
     .populate("sender", userPublicFields)
+    .populate("reactions.user", "name")
     .populate({
       path: "replyToMessage",
       populate: {
@@ -312,23 +324,100 @@ async function mapConversationForUser(userId, conversation) {
   return mapConversation(conversation, lastMessage, unreadCount);
 }
 
+/**
+ * Optimised: single aggregation replaces N parallel (countDocuments + findOne) pairs.
+ * Fetches last-message and unread-count for every conversation in one pipeline.
+ */
 async function getConversationsForUser(userId) {
+  const userObjectId = toObjectId(userId, "User");
+
   const conversations = await Conversation.find({
-    "participants.user": toObjectId(userId, "User"),
+    "participants.user": userObjectId,
   })
     .populate("participants.user", userPublicFields)
     .sort({ updatedAt: -1 })
     .lean();
 
-  const mappedConversations = await Promise.all(
-    conversations.map((conversation) => mapConversationForUser(userId, conversation)),
-  );
+  if (!conversations.length) return [];
 
-  return mappedConversations.sort((left, right) => {
-    const leftDate = left.lastMessage?.createdAt || left.updatedAt || left.createdAt;
-    const rightDate = right.lastMessage?.createdAt || right.updatedAt || right.createdAt;
+  const conversationIds = conversations.map((c) => c._id);
 
-    return new Date(rightDate) - new Date(leftDate);
+  // Fetch all last-messages and unread counts in two bulk queries instead of 2N queries
+  const [lastMessages, unreadAgg] = await Promise.all([
+    // One query: latest message per conversation
+    populateMessageQuery(
+      Message.aggregate([
+        { $match: { conversation: { $in: conversationIds } } },
+        { $sort: { _id: -1 } },
+        {
+          $group: {
+            _id: "$conversation",
+            msgId: { $first: "$_id" },
+          },
+        },
+      ]),
+    ).then(async (groups) => {
+      if (!groups.length) return new Map();
+      const ids = groups.map((g) => g.msgId);
+      const msgs = await populateMessageQuery(
+        Message.find({ _id: { $in: ids } }),
+      ).lean();
+      const map = new Map();
+      msgs.forEach((m) => map.set(String(m.conversation), m));
+      return map;
+    }),
+
+    // One aggregation: unread count per conversation for this user
+    Message.aggregate([
+      {
+        $match: {
+          conversation: { $in: conversationIds },
+          sender: { $ne: userObjectId },
+        },
+      },
+      {
+        $group: {
+          _id: "$conversation",
+          total: { $sum: 1 },
+          // count only messages newer than lastReadMessage (handled below per-participant)
+          allIds: { $push: "$_id" },
+        },
+      },
+    ]),
+  ]);
+
+  // Build a map of conversationId -> lastReadMessageId for this user
+  const lastReadMap = new Map();
+  conversations.forEach((conv) => {
+    const p = getParticipant(conv, userId);
+    if (p?.lastReadMessage) {
+      lastReadMap.set(String(conv._id), String(p.lastReadMessage));
+    }
+  });
+
+  // Convert unread agg to per-conversation unread counts
+  const unreadMap = new Map();
+  unreadAgg.forEach(({ _id, allIds }) => {
+    const convKey = String(_id);
+    const lastRead = lastReadMap.get(convKey);
+    if (!lastRead) {
+      unreadMap.set(convKey, allIds.length);
+    } else {
+      // Count only messages with _id > lastReadMessage
+      const count = allIds.filter((id) => String(id) > lastRead).length;
+      unreadMap.set(convKey, count);
+    }
+  });
+
+  const mapped = conversations.map((conv) => {
+    const key = String(conv._id);
+    return mapConversation(conv, lastMessages.get ? lastMessages.get(key) || null : null, unreadMap.get(key) || 0);
+  });
+
+  return mapped.sort((a, b) => {
+    const aDate = a.lastMessage?.createdAt || a.updatedAt || a.createdAt;
+    const bDate = b.lastMessage?.createdAt || b.updatedAt || b.createdAt;
+    return new Date(bDate) - new Date(aDate);
   });
 }
 
@@ -634,33 +723,22 @@ async function updateMessage(userId, conversationId, messageId, content) {
     conversation: toObjectId(conversationId, "Conversation"),
   }).lean();
 
-  if (!message) {
-    throw new AppError("Message not found.", 404);
-  }
+  if (!message) throw new AppError("Message not found.", 404);
+  if (!isSameId(message.sender, userId)) throw new AppError("You can only edit your own messages.", 403);
+  if (message.isDeleted) throw new AppError("Deleted messages cannot be edited.", 400);
 
-  if (!isSameId(message.sender, userId)) {
-    throw new AppError("You can only edit your own messages.", 403);
-  }
-
-  if (message.isDeleted) {
-    throw new AppError("Deleted messages cannot be edited.", 400);
-  }
-
-  await Message.findByIdAndUpdate(messageId, {
-    $set: {
-      content,
-      editedAt: new Date(),
-    },
-  });
-
-  await Conversation.findByIdAndUpdate(conversationId, {
-    $set: {
-      updatedAt: new Date(),
-    },
-  });
+  // Run both writes in parallel
+  const [updated] = await Promise.all([
+    Message.findByIdAndUpdate(
+      messageId,
+      { $set: { content, editedAt: new Date() } },
+      { new: true },
+    ).populate("sender", userPublicFields).populate("reactions.user", "name").lean(),
+    Conversation.findByIdAndUpdate(conversationId, { $set: { updatedAt: new Date() } }),
+  ]);
 
   return {
-    message: await getMessageById(messageId),
+    message: mapMessageDoc(updated),
     participantIds: await getConversationParticipantIds(conversationId),
   };
 }
@@ -673,39 +751,28 @@ async function deleteMessage(userId, conversationId, messageId) {
     conversation: toObjectId(conversationId, "Conversation"),
   }).lean();
 
-  if (!message) {
-    throw new AppError("Message not found.", 404);
-  }
+  if (!message) throw new AppError("Message not found.", 404);
+  if (!isSameId(message.sender, userId)) throw new AppError("You can only delete your own messages.", 403);
+  if (message.isDeleted) throw new AppError("Message has already been deleted.", 400);
 
-  if (!isSameId(message.sender, userId)) {
-    throw new AppError("You can only delete your own messages.", 403);
-  }
-
-  if (message.isDeleted) {
-    throw new AppError("Message has already been deleted.", 400);
-  }
-
-  await Message.findByIdAndUpdate(messageId, {
-    $set: {
-      content: "",
-      fileName: null,
-      fileUrl: null,
-      fileSize: null,
-      mimeType: null,
-      isDeleted: true,
-      deletedAt: new Date(),
-      editedAt: null,
-    },
-  });
-
-  await Conversation.findByIdAndUpdate(conversationId, {
-    $set: {
-      updatedAt: new Date(),
-    },
-  });
+  // Run both writes in parallel
+  const [deleted] = await Promise.all([
+    Message.findByIdAndUpdate(
+      messageId,
+      {
+        $set: {
+          content: "", fileName: null, fileUrl: null,
+          fileSize: null, mimeType: null,
+          isDeleted: true, deletedAt: new Date(), editedAt: null,
+        },
+      },
+      { new: true },
+    ).populate("sender", userPublicFields).lean(),
+    Conversation.findByIdAndUpdate(conversationId, { $set: { updatedAt: new Date() } }),
+  ]);
 
   return {
-    message: await getMessageById(messageId),
+    message: mapMessageDoc(deleted),
     participantIds: await getConversationParticipantIds(conversationId),
   };
 }
@@ -713,59 +780,75 @@ async function deleteMessage(userId, conversationId, messageId) {
 async function markConversationAsRead(userId, conversationId) {
   await requireConversationMembership(conversationId, userId);
 
+  const userObjectId = toObjectId(userId, "User");
   const conversation = await Conversation.findById(toObjectId(conversationId, "Conversation"));
   const participant = getParticipant(conversation, userId);
   const participantIds = conversation.participants.map((entry) => normalizeId(entry.user));
-  const latestIncomingMessage = await Message.findOne({
-    conversation: conversation._id,
-    sender: {
-      $ne: toObjectId(userId, "User"),
-    },
-  }).sort({ _id: -1 });
 
-  if (latestIncomingMessage) {
-    participant.lastReadMessage = latestIncomingMessage._id;
+  // Find the latest incoming message
+  const latestIncoming = await Message.findOne({
+    conversation: conversation._id,
+    sender: { $ne: userObjectId },
+  })
+    .sort({ _id: -1 })
+    .select("_id")
+    .lean();
+
+  if (latestIncoming) {
+    participant.lastReadMessage = latestIncoming._id;
     conversation.markModified("participants");
     await conversation.save();
   }
 
-  const pendingMessages = await Message.find({
-    conversation: conversation._id,
-    status: {
-      $ne: "seen",
-    },
-  }).lean();
-  const seenMessageIds = pendingMessages
-    .filter((message) => {
-      const recipients = conversation.participants.filter(
-        (entry) => !isSameId(entry.user, message.sender),
+  // Determine which messages every recipient has now read using per-participant cursors
+  // Collect the minimum lastReadMessage across all non-sender participants
+  const seenMessageIds = [];
+
+  if (latestIncoming) {
+    // A message is "seen" when ALL recipients have a lastReadMessage >= that message.
+    // Build a map of participantId -> lastReadMessage after the save above.
+    const lastReadByUser = new Map();
+    conversation.participants.forEach((p) => {
+      if (p.lastReadMessage) {
+        lastReadByUser.set(normalizeId(p.user), String(p.lastReadMessage));
+      }
+    });
+
+    // Find all non-seen messages where every recipient's cursor covers them.
+    // We let MongoDB do the heavy lifting: a message is seen iff _id <= min(lastRead) for all recipients.
+    // Because ObjectId comparison is lexicographic and monotonic, we find the min cursor among recipients.
+    const recipientCursors = conversation.participants
+      .filter((p) => p.lastReadMessage)
+      .map((p) => String(p.lastReadMessage));
+
+    if (recipientCursors.length === conversation.participants.length) {
+      // Every participant has a read cursor — find the oldest one
+      recipientCursors.sort();
+      const minCursor = toObjectId(recipientCursors[0], "Message");
+
+      const updated = await Message.updateMany(
+        {
+          conversation: conversation._id,
+          status: { $ne: "seen" },
+          _id: { $lte: minCursor },
+        },
+        { $set: { status: "seen" } },
       );
 
-      return recipients.every((entry) => (
-        entry.lastReadMessage && normalizeId(entry.lastReadMessage) >= normalizeId(message)
-      ));
-    })
-    .map((message) => normalizeId(message));
-
-  if (seenMessageIds.length) {
-    await Message.updateMany(
-      {
-        _id: {
-          $in: seenMessageIds.map((messageId) => toObjectId(messageId, "Message")),
-        },
-      },
-      {
-        $set: {
+      if (updated.modifiedCount > 0) {
+        const seen = await Message.find({
+          conversation: conversation._id,
           status: "seen",
-        },
-      },
-    );
+          _id: { $lte: minCursor },
+        })
+          .select("_id")
+          .lean();
+        seen.forEach((m) => seenMessageIds.push(normalizeId(m)));
+      }
+    }
   }
 
-  return {
-    participantIds,
-    seenMessageIds,
-  };
+  return { participantIds, seenMessageIds };
 }
 
 async function markPendingDirectMessagesDelivered(userId) {
@@ -825,6 +908,60 @@ async function updateUserLastSeen(userId) {
   });
 }
 
+async function addReactionToMessage(userId, conversationId, messageId, emoji) {
+  await requireConversationMembership(conversationId, userId);
+
+  const userObjectId = toObjectId(userId, "User");
+  const msgObjectId = toObjectId(messageId, "Message");
+
+  const message = await Message.findOne({
+    _id: msgObjectId,
+    conversation: toObjectId(conversationId, "Conversation"),
+    isDeleted: false,
+  });
+
+  if (!message) {
+    throw new AppError("Message not found.", 404);
+  }
+
+  // Remove any existing reaction from this user with this emoji (idempotent toggle)
+  const alreadyReacted = message.reactions.some(
+    (r) => isSameId(r.user, userId) && r.emoji === emoji,
+  );
+
+  if (alreadyReacted) {
+    return getMessageById(messageId);
+  }
+
+  message.reactions.push({ user: userObjectId, emoji });
+  await message.save();
+
+  return getMessageById(messageId);
+}
+
+async function removeReactionFromMessage(userId, conversationId, messageId, emoji) {
+  await requireConversationMembership(conversationId, userId);
+
+  const msgObjectId = toObjectId(messageId, "Message");
+
+  const message = await Message.findOne({
+    _id: msgObjectId,
+    conversation: toObjectId(conversationId, "Conversation"),
+    isDeleted: false,
+  });
+
+  if (!message) {
+    throw new AppError("Message not found.", 404);
+  }
+
+  message.reactions = message.reactions.filter(
+    (r) => !(isSameId(r.user, userId) && r.emoji === emoji),
+  );
+  await message.save();
+
+  return getMessageById(messageId);
+}
+
 module.exports = {
   findUserByEmail,
   findUserById,
@@ -847,4 +984,7 @@ module.exports = {
   isConversationParticipant,
   markPendingDirectMessagesDelivered,
   updateUserLastSeen,
+  addReactionToMessage,
+  removeReactionFromMessage,
+  getConversationParticipantIds,
 };

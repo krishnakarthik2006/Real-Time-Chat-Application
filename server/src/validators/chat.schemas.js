@@ -78,6 +78,10 @@ const updateGroupRoleSchema = z.object({
   role: z.enum(["member", "admin"]),
 });
 
+const reactionSchema = z.object({
+  emoji: z.string().trim().min(1).max(12),
+});
+
 module.exports = {
   directConversationSchema,
   groupConversationSchema,
@@ -89,4 +93,5 @@ module.exports = {
   renameGroupSchema,
   addGroupParticipantsSchema,
   updateGroupRoleSchema,
+  reactionSchema,
 };

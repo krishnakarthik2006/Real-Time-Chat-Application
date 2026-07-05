@@ -7,7 +7,7 @@ function toNumber(value, fallback) {
 }
 
 module.exports = {
-  PORT: toNumber(process.env.PORT, 5001),
+  PORT: toNumber(process.env.PORT, 5009),
   CLIENT_URL: process.env.CLIENT_URL || "http://localhost:5173",
   API_BASE_URL: process.env.API_BASE_URL || "http://localhost:5001",
   JWT_SECRET: process.env.JWT_SECRET || "change-this-secret",

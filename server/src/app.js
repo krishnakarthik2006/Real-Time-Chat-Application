@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const compression = require("compression");
 const path = require("path");
 const env = require("./config/env");
 const authRoutes = require("./routes/auth.routes");
@@ -19,6 +20,9 @@ function createApp(ioRef) {
     "http://localhost:5175",
     "http://localhost:5176",
   ]);
+
+  // Gzip all JSON/text responses
+  app.use(compression());
 
   app.use(
     cors({

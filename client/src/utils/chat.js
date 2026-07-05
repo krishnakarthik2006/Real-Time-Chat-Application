@@ -307,3 +307,8 @@ export function formatFileSize(size) {
 
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+/** Alias for formatRelativeTime — used in profile panels */
+export function formatLastSeen(value) {
+  return formatRelativeTime(value);
+}

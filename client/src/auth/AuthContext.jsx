@@ -65,6 +65,10 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
+  async function updateUser(updatedUser) {
+    setUser(updatedUser);
+  }
+
   const value = {
     token,
     user,
@@ -73,6 +77,7 @@ export function AuthProvider({ children }) {
     register: (payload) => authenticate("/auth/register", payload),
     loginWithGoogle: (credential) => authenticate("/auth/google", { credential }),
     logout,
+    updateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

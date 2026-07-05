@@ -17,6 +17,7 @@ import { conversationApi } from "../utils/apiHelpers";
 import ChatWindow from "./ChatWindow";
 import CreateGroupModal from "./CreateGroupModal";
 import Sidebar from "./Sidebar";
+import StatusToast from "./StatusToast";
 import {
   formatInlinePreview,
   formatMessagePreview,
@@ -170,6 +171,9 @@ export default memo(function ChatDashboard() {
   const [loadingGroupUsers, setLoadingGroupUsers] = useState(false);
   const [selectedGroupUserIds, setSelectedGroupUserIds] = useState([]);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [loadingMoreMessages, setLoadingMoreMessages] = useState(false);
+  const oldestMessageCursorRef = useRef(null);
   const [messageSearchQuery, setMessageSearchQuery] = useState("");
   const [messageSearchResults, setMessageSearchResults] = useState([]);
   const [searchingMessages, setSearchingMessages] = useState(false);
@@ -398,6 +402,8 @@ export default memo(function ChatDashboard() {
     setEditingMessageId(null);
     setEditingContent("");
     setSearchPanelOpen(false);
+    setHasMoreMessages(false);
+    oldestMessageCursorRef.current = null;
 
     if (selectedConversation?.type !== "group") {
       setGroupPanelOpen(false);
@@ -866,36 +872,38 @@ export default memo(function ChatDashboard() {
 
     async function loadMessages() {
       setLoadingMessages(true);
+      oldestMessageCursorRef.current = null;
+      setHasMoreMessages(false);
 
       try {
-        const data = await request(`/conversations/${selectedConversationId}/messages?limit=100`, { token });
+        const data = await request(
+          `/conversations/${selectedConversationId}/messages?limit=30`,
+          { token },
+        );
 
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
 
         setMessagesByConversation((current) => ({
           ...current,
           [selectedConversationId]: data.messages,
         }));
 
+        if (data.messages.length === 30) {
+          oldestMessageCursorRef.current = data.messages[0]?.id || null;
+          setHasMoreMessages(true);
+        }
+
         await markConversationAsRead(selectedConversationId);
       } catch (error) {
-        if (!cancelled) {
-          setStatusMessage(error.message);
-        }
+        if (!cancelled) setStatusMessage(error.message);
       } finally {
-        if (!cancelled) {
-          setLoadingMessages(false);
-        }
+        if (!cancelled) setLoadingMessages(false);
       }
     }
 
     loadMessages();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [selectedConversationId, token]);
 
   async function markConversationAsRead(conversationId) {
@@ -907,10 +915,7 @@ export default memo(function ChatDashboard() {
 
       setConversations((current) => current.map((conversation) => (
         conversation.id === conversationId
-          ? {
-              ...conversation,
-              unreadCount: 0,
-            }
+          ? { ...conversation, unreadCount: 0 }
           : conversation
       )));
     } catch (_error) {
@@ -919,6 +924,42 @@ export default memo(function ChatDashboard() {
 
     return null;
   }
+
+  const loadMoreMessages = useCallback(async () => {
+    if (!selectedConversationId || loadingMoreMessages || !hasMoreMessages) return;
+    const cursor = oldestMessageCursorRef.current;
+    if (!cursor) return;
+
+    setLoadingMoreMessages(true);
+    try {
+      const data = await request(
+        `/conversations/${selectedConversationId}/messages?limit=30&cursor=${cursor}`,
+        { token },
+      );
+
+      if (data.messages.length > 0) {
+        setMessagesByConversation((current) => ({
+          ...current,
+          [selectedConversationId]: [
+            ...data.messages,
+            ...(current[selectedConversationId] || []),
+          ],
+        }));
+      }
+
+      if (data.messages.length === 30) {
+        oldestMessageCursorRef.current = data.messages[0]?.id || null;
+        setHasMoreMessages(true);
+      } else {
+        oldestMessageCursorRef.current = null;
+        setHasMoreMessages(false);
+      }
+    } catch (error) {
+      setStatusMessage(error.message);
+    } finally {
+      setLoadingMoreMessages(false);
+    }
+  }, [selectedConversationId, loadingMoreMessages, hasMoreMessages, token]);
 
   const startDirectConversation = useCallback(async (targetUser) => {
     try {
@@ -986,6 +1027,24 @@ export default memo(function ChatDashboard() {
       setSendingMessage(false);
     }
   }, [conversationOps]);
+
+  const handleAddReaction = useCallback(async (messageId, emoji) => {
+    if (!selectedConversationId) return;
+    try {
+      await conversationApi.addReaction(selectedConversationId, messageId, emoji, token);
+    } catch (error) {
+      setStatusMessage(error.message);
+    }
+  }, [selectedConversationId, token]);
+
+  const handleRemoveReaction = useCallback(async (messageId, emoji) => {
+    if (!selectedConversationId) return;
+    try {
+      await conversationApi.removeReaction(selectedConversationId, messageId, emoji, token);
+    } catch (error) {
+      setStatusMessage(error.message);
+    }
+  }, [selectedConversationId, token]);
 
   async function saveEditedMessage(messageId) {
     if (!selectedConversationId || !editingContent.trim()) {
@@ -1172,8 +1231,9 @@ export default memo(function ChatDashboard() {
         />
 
         <section className="workspace-panel">
-          {statusMessage ? <div className="status-banner">{statusMessage}</div> : null}
-          {loadingConversations ? <div className="status-banner">Loading conversations...</div> : null}
+          {statusMessage ? (
+            <StatusToast message={statusMessage} onDismiss={() => setStatusMessage("")} />
+          ) : null}
 
           <ChatWindow
             currentUser={user}
@@ -1182,6 +1242,9 @@ export default memo(function ChatDashboard() {
             messages={messagesByConversation[selectedConversationId] || []}
             typingUsers={typingByConversation[selectedConversationId] || []}
             loadingMessages={loadingMessages}
+            loadingMoreMessages={loadingMoreMessages}
+            hasMoreMessages={hasMoreMessages}
+            onLoadMoreMessages={loadMoreMessages}
             sendingMessage={sendingMessage}
             presenceByUserId={presenceByUserId}
             socket={socket}
@@ -1250,8 +1313,8 @@ export default memo(function ChatDashboard() {
                 toggleConversationArchived(selectedConversation.id);
               }
             }}
-            onAddReaction={null}
-            onRemoveReaction={null}
+            onAddReaction={handleAddReaction}
+            onRemoveReaction={handleRemoveReaction}
           />
         </section>
       </main>

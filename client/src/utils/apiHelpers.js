@@ -150,6 +150,23 @@ export const conversationApi = {
       token,
     });
   },
+
+  // Add reaction to a message
+  async addReaction(conversationId, messageId, emoji, token) {
+    return apiRequest(`/conversations/${conversationId}/messages/${messageId}/reactions`, {
+      method: "POST",
+      token,
+      body: { emoji },
+    });
+  },
+
+  // Remove reaction from a message
+  async removeReaction(conversationId, messageId, emoji, token) {
+    return apiRequest(
+      `/conversations/${conversationId}/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`,
+      { method: "DELETE", token },
+    );
+  },
 };
 
 // User API functions

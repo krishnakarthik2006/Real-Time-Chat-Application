@@ -1,4 +1,10 @@
-export default function TypingIndicator({ users }) {
+import { memo } from "react";
+
+/**
+ * Memoised — only re-renders when the users array reference changes,
+ * which happens only when someone starts/stops typing.
+ */
+const TypingIndicator = memo(function TypingIndicator({ users }) {
   if (!users || !users.length) return null;
 
   const label =
@@ -16,4 +22,6 @@ export default function TypingIndicator({ users }) {
       <span>{label}</span>
     </div>
   );
-}
+});
+
+export default TypingIndicator;

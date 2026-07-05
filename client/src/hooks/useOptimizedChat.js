@@ -1,25 +1,29 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { conversationApi } from "../utils/apiHelpers";
 
 /**
  * Handles all REST conversation/message operations.
- * The `onConversationUpdate` callback is called after markAsRead
- * so the parent can update its own state without knowing the API shape.
+ * `onConversationUpdate` is stored in a ref so changing it never invalidates
+ * the memoised callbacks — avoids unnecessary re-renders in the parent.
  */
 export function useConversationOperations(token, onConversationUpdate) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const onUpdateRef = useRef(onConversationUpdate);
+
+  // Keep the ref current without re-creating callbacks
+  onUpdateRef.current = onConversationUpdate;
 
   const markAsRead = useCallback(async (conversationId) => {
     if (!conversationId || !token) return;
     try {
       await conversationApi.markAsRead(conversationId, token);
-      onConversationUpdate?.(conversationId, { unreadCount: 0 });
+      onUpdateRef.current?.(conversationId, { unreadCount: 0 });
     } catch (err) {
       console.error("Failed to mark conversation as read:", err);
       setError(err.message);
     }
-  }, [token, onConversationUpdate]);
+  }, [token]); // token is the only real dep now
 
   const sendMessage = useCallback(async (conversationId, payload) => {
     if (!conversationId || !token || !payload) return null;
@@ -76,7 +80,7 @@ export function useConversationOperations(token, onConversationUpdate) {
     deleteMessage,
     loading,
     error,
-    clearError: () => setError(null),
+    clearError: useCallback(() => setError(null), []),
   };
 }
 

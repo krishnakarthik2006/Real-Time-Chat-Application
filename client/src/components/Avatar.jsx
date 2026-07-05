@@ -1,10 +1,20 @@
+import { memo } from "react";
 import { getAvatarBackground, getInitials } from "../utils/chat";
 
-export default function Avatar({ name, seed, size = "default" }) {
-  const cls = ["avatar", size === "small" ? "avatar--small" : size === "large" ? "avatar--large" : ""].filter(Boolean).join(" ");
+const SIZE_CLASS = {
+  small:   "avatar avatar--small",
+  large:   "avatar avatar--large",
+  default: "avatar",
+};
+
+/**
+ * Pure presentational component — memoised so parent re-renders that pass
+ * the same name/seed/size don't trigger a DOM update.
+ */
+const Avatar = memo(function Avatar({ name, seed, size = "default" }) {
   return (
     <div
-      className={cls}
+      className={SIZE_CLASS[size] ?? SIZE_CLASS.default}
       style={{ background: getAvatarBackground(seed || name) }}
       aria-hidden="true"
       title={name}
@@ -12,4 +22,6 @@ export default function Avatar({ name, seed, size = "default" }) {
       {getInitials(name)}
     </div>
   );
-}
+});
+
+export default Avatar;
