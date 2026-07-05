@@ -820,8 +820,33 @@ export default memo(function ChatDashboard() {
     )));
   }, []);
 
+  const socketErrorCountRef = useRef(0);
+
   const handleSocketError = useCallback((error) => {
-    setStatusMessage(error.message || "Realtime connection failed.");
+    // Transport errors (websocket error, ECONNRESET, timeout) are transient —
+    // Socket.io will reconnect automatically. Only show a toast for:
+    //   • Auth errors (token rejected) — always show immediately
+    //   • Persistent failures — after 3 consecutive attempts
+    const message = error?.message || "";
+    const isAuthError = message.toLowerCase().includes("auth") ||
+      message.toLowerCase().includes("token") ||
+      message.toLowerCase().includes("invalid");
+
+    if (isAuthError) {
+      setStatusMessage("Connection refused: invalid session. Please sign in again.");
+      return;
+    }
+
+    socketErrorCountRef.current += 1;
+    if (socketErrorCountRef.current >= 3) {
+      setStatusMessage("Unable to reach the server. Retrying in the background…");
+    }
+  }, []);
+
+  // Reset error count on successful reconnect
+  const handleSocketReconnect = useCallback(() => {
+    socketErrorCountRef.current = 0;
+    setStatusMessage("");
   }, []);
 
   useEffect(() => {

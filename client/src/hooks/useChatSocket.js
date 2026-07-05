@@ -35,10 +35,14 @@ export function useChatSocket(token) {
       timeout: 20000,
     });
 
-    // Silence the "websocket error" console spam that comes from
-    // ECONNRESET during Vite HMR / server restarts. The socket
-    // reconnects automatically — no action needed.
+    // Silence low-level transport errors (ECONNRESET, EPIPE, etc.) that
+    // occur during Vite HMR / server restarts. Socket.io reconnects
+    // automatically — these are not actionable by the user.
     connection.io.on("error", () => {});
+
+    // Also suppress the per-attempt connect_error at the engine level so
+    // transient blips never bubble up to the UI error handler.
+    connection.io.on("reconnect_error", () => {});
 
     socketRef.current = connection;
     setSocket(connection);
