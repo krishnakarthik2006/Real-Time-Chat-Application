@@ -1422,6 +1422,7 @@ export default memo(function ChatDashboard() {
             onPinMessage={handlePinMessage}
             onSetAnnouncement={handleSetAnnouncement}
             onSetNickname={handleSetNickname}
+            token={token}
           />
         </section>
       </main>

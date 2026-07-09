@@ -1,10 +1,11 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import { Search, X, Users, Pin, PinOff, BellOff, Bell, Archive, ArchiveRestore, ChevronLeft, User } from "lucide-react";
+import { Search, X, Users, Pin, PinOff, BellOff, Bell, Archive, ArchiveRestore, ChevronLeft, Images, User } from "lucide-react";
 import Avatar from "./Avatar";
 import GroupManagerPanel from "./GroupManagerPanel";
 import MessageBubble from "./MessageBubble";
 import MessageComposer from "./MessageComposer";
 import MessageSearchPanel from "./MessageSearchPanel";
+import SharedMediaPanel from "./SharedMediaPanel";
 import TypingIndicator from "./TypingIndicator";
 import UserProfilePanel from "./UserProfilePanel";
 import { formatDayDivider, getConversationStatus, getConversationTitle, isSameDay } from "../utils/chat";
@@ -26,14 +27,20 @@ export default function ChatWindow({
   starredMessageIds, onToggleStar, onForwardMessage,
   onPollVote, onPinMessage,
   onSetAnnouncement, onSetNickname,
+  token,
 }) {
   const listRef = useRef(null);
   const endRef = useRef(null);
   const autoScrollRef = useRef(true);
   const prevConvIdRef = useRef(conversation?.id || null);
   const [profilePanelUser, setProfilePanelUser] = useState(null);
+  const [sharedMediaOpen, setSharedMediaOpen] = useState(false);
 
   // Track scroll intent
+  useEffect(() => {
+    setSharedMediaOpen(false);
+  }, [conversation?.id]);
+
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
@@ -138,6 +145,14 @@ export default function ChatWindow({
               {groupPanelOpen ? <X size={17} /> : <Users size={17} />}
             </button>
           )}
+          <button
+            className={`icon-button icon-button--surface${sharedMediaOpen ? " icon-button--active" : ""}`}
+            type="button"
+            onClick={() => setSharedMediaOpen((value) => !value)}
+            title={sharedMediaOpen ? "Close shared media" : "View shared media"}
+          >
+            <Images size={17} />
+          </button>
           <button
             className="icon-button icon-button--surface" type="button"
             onClick={onTogglePinConversation}
@@ -266,6 +281,13 @@ export default function ChatWindow({
         <TypingIndicator users={typingUsers} />
         <div ref={endRef} />
       </div>
+
+      <SharedMediaPanel
+        conversationId={conversation.id}
+        token={token}
+        open={sharedMediaOpen}
+        onClose={() => setSharedMediaOpen(false)}
+      />
 
       {/* Composer */}
       <MessageComposer

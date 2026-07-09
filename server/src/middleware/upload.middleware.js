@@ -21,10 +21,41 @@ const storage = multer.diskStorage({
   },
 });
 
+const allowedMimeTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+  "audio/mpeg",
+  "audio/mp3",
+  "audio/ogg",
+  "audio/wav",
+  "audio/webm",
+  "audio/mp4",
+  "audio/aac",
+  "application/pdf",
+  "text/plain",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+]);
+
 const upload = multer({
   storage,
   limits: {
     fileSize: env.MAX_FILE_SIZE_BYTES,
+  },
+  fileFilter: (_req, file, callback) => {
+    if (allowedMimeTypes.has(file.mimetype) || file.mimetype.startsWith("image/") || file.mimetype.startsWith("video/") || file.mimetype.startsWith("audio/")) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error("Unsupported file type"), false);
   },
 });
 

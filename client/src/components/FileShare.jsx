@@ -3,6 +3,8 @@ import { formatFileSize } from "../utils/chat";
 
 const ALLOWED_TYPES = [
   "image/jpeg", "image/png", "image/gif", "image/webp",
+  "video/mp4", "video/webm", "video/quicktime",
+  "audio/mpeg", "audio/mp3", "audio/ogg", "audio/wav", "audio/webm", "audio/mp4", "audio/aac",
   "application/pdf", "text/plain",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -11,8 +13,14 @@ const ALLOWED_TYPES = [
 ];
 const MAX_BYTES = 10 * 1024 * 1024;
 
+function isAllowedFileType(type = "") {
+  return ALLOWED_TYPES.includes(type) || type.startsWith("image/") || type.startsWith("video/") || type.startsWith("audio/");
+}
+
 function getFileIcon(type = "") {
   if (type.startsWith("image/")) return "🖼️";
+  if (type.startsWith("video/")) return "🎥";
+  if (type.startsWith("audio/")) return "🎤";
   if (type.includes("pdf")) return "📄";
   if (type.includes("word")) return "📝";
   if (type.includes("excel") || type.includes("spreadsheet")) return "📊";
@@ -29,7 +37,7 @@ export default function FileShare({ onFileSelect, disabled = false }) {
   const processFile = useCallback((file) => {
     setError("");
     if (file.size > MAX_BYTES) { setError("File must be smaller than 10 MB."); return; }
-    if (!ALLOWED_TYPES.includes(file.type)) { setError("File type not supported."); return; }
+    if (!isAllowedFileType(file.type)) { setError("File type not supported."); return; }
 
     if (file.type.startsWith("image/")) {
       const reader = new FileReader();
@@ -101,7 +109,7 @@ export default function FileShare({ onFileSelect, disabled = false }) {
         onKeyDown={(e) => e.key === "Enter" && !disabled && inputRef.current?.click()}
       >
         <input ref={inputRef} type="file" onChange={handleInput} disabled={disabled}
-          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" style={{ display: "none" }} />
+          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" style={{ display: "none" }} />
         <div className="file-drop-content">
           <div className="file-drop-icon">📎</div>
           <div className="file-drop-text">

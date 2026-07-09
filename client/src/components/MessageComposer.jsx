@@ -3,6 +3,7 @@ import { Paperclip, SendHorizonal, X } from "lucide-react";
 import { formatFileSize, formatInlinePreview } from "../utils/chat";
 import VoiceRecorder from "./VoiceRecorder";
 import ComposeExtras from "./ComposeExtras";
+import FileShare from "./FileShare";
 
 function getDraftKey(cid) { return `pulse-draft-${cid}`; }
 
@@ -14,7 +15,7 @@ export default function MessageComposer({
   const [content, setContent] = useState("");
   const [file, setFile] = useState(null);
   const [mentionQuery, setMentionQuery] = useState(null); // string when active
-  const fileInputRef = useRef(null);
+  const [showFilePicker, setShowFilePicker] = useState(false);
   const textareaRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
@@ -43,8 +44,8 @@ export default function MessageComposer({
     setContent("");
     setFile(null);
     setMentionQuery(null);
+    setShowFilePicker(false);
     localStorage.removeItem(getDraftKey(conversationId));
-    if (fileInputRef.current) fileInputRef.current.value = "";
     textareaRef.current?.focus();
   }
 
@@ -57,7 +58,7 @@ export default function MessageComposer({
     setContent(conversationId ? localStorage.getItem(getDraftKey(conversationId)) || "" : "");
     setFile(null);
     setMentionQuery(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    setShowFilePicker(false);
     textareaRef.current?.focus();
   }, [conversationId]);
 
@@ -127,7 +128,7 @@ export default function MessageComposer({
               <strong>{file.name}</strong>
               <span className="file-preview-strip__meta">{formatFileSize(file.size)}</span>
             </div>
-            <button className="icon-button" type="button" aria-label="Remove file" onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}><X size={14} /></button>
+            <button className="icon-button" type="button" aria-label="Remove file" onClick={() => { setFile(null); setShowFilePicker(false); }}><X size={14} /></button>
           </div>
         )}
 
@@ -143,10 +144,9 @@ export default function MessageComposer({
         )}
 
         <div className="composer-row">
-          <label className="upload-button--icon" htmlFor="composer-file" aria-label="Attach file" title="Attach file">
+          <button className="upload-button--icon" type="button" aria-label="Attach file" title="Attach file" onClick={() => setShowFilePicker((value) => !value)}>
             <Paperclip size={17} className="upload-button__icon" />
-          </label>
-          <input ref={fileInputRef} id="composer-file" type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} hidden />
+          </button>
 
           <textarea
             ref={textareaRef}
@@ -170,6 +170,12 @@ export default function MessageComposer({
             </button>
           )}
         </div>
+
+        {showFilePicker && !file && (
+          <div style={{ padding: "0 8px 8px" }}>
+            <FileShare onFileSelect={(selectedFile) => { setFile(selectedFile); setShowFilePicker(false); }} disabled={disabled} />
+          </div>
+        )}
 
         <div className="composer-meta">
           <span className="composer-hint">{content.length}/4000</span>
