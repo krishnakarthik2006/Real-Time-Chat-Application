@@ -852,10 +852,23 @@ export default memo(function ChatDashboard() {
     }
   }, []);
 
-  // Reset error count on successful reconnect
   const handleSocketReconnect = useCallback(() => {
     socketErrorCountRef.current = 0;
     setStatusMessage("");
+  }, []);
+
+  // Handle server-broadcast pin/unpin events
+  const handleMessagePinned = useCallback(({ conversationId, messageId, pin }) => {
+    setMessagesByConversation((current) => {
+      const msgs = current[conversationId];
+      if (!msgs) return current;
+      return {
+        ...current,
+        [conversationId]: msgs.map((m) =>
+          m.id === messageId ? { ...m, isPinned: Boolean(pin) } : m,
+        ),
+      };
+    });
   }, []);
 
   useEffect(() => {
@@ -872,6 +885,8 @@ export default memo(function ChatDashboard() {
     socket.on("typing:update", handleTypingUpdate);
     socket.on("message:status", handleMessageStatus);
     socket.on("connect_error", handleSocketError);
+    socket.on("reconnect", handleSocketReconnect);
+    socket.on("message:pinned", handleMessagePinned);
 
     return () => {
       socket.off("presence:snapshot", handlePresenceSnapshot);
@@ -883,16 +898,20 @@ export default memo(function ChatDashboard() {
       socket.off("typing:update", handleTypingUpdate);
       socket.off("message:status", handleMessageStatus);
       socket.off("connect_error", handleSocketError);
+      socket.off("reconnect", handleSocketReconnect);
+      socket.off("message:pinned", handleMessagePinned);
     };
   }, [
     handleConversationRemoved,
     handleConversationUpsert,
     handleIncomingMessage,
+    handleMessagePinned,
     handleMessageStatus,
     handleMessageUpdate,
     handlePresenceSnapshot,
     handlePresenceUpdate,
     handleSocketError,
+    handleSocketReconnect,
     handleTypingUpdate,
     socket,
   ]);
@@ -1083,6 +1102,18 @@ export default memo(function ChatDashboard() {
   const handlePinMessage = useCallback(async (message, pin) => {
     if (!selectedConversationId) return;
     try { await conversationApi.pinMessage(selectedConversationId, message.id, pin, token); }
+    catch (error) { setStatusMessage(error.message); }
+  }, [selectedConversationId, token]);
+
+  const handleSetAnnouncement = useCallback(async (isAnnouncement) => {
+    if (!selectedConversationId) return;
+    try { await conversationApi.setAnnouncement(selectedConversationId, isAnnouncement, token); }
+    catch (error) { setStatusMessage(error.message); }
+  }, [selectedConversationId, token]);
+
+  const handleSetNickname = useCallback(async (userId, nickname) => {
+    if (!selectedConversationId) return;
+    try { await conversationApi.setNickname(selectedConversationId, userId, nickname, token); }
     catch (error) { setStatusMessage(error.message); }
   }, [selectedConversationId, token]);
 
@@ -1389,6 +1420,8 @@ export default memo(function ChatDashboard() {
             onForwardMessage={(msg) => setForwardingMessage(msg)}
             onPollVote={handlePollVote}
             onPinMessage={handlePinMessage}
+            onSetAnnouncement={handleSetAnnouncement}
+            onSetNickname={handleSetNickname}
           />
         </section>
       </main>

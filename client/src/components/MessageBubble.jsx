@@ -202,7 +202,15 @@ const MessageBubble = memo(function MessageBubble({
             {!isAudio && !isGif && !isSticker && !isPoll && !isEvent && (
               isEditing ? (
                 <div className="edit-message-box">
-                  <input type="text" value={editingContent} onChange={(e) => onEditContentChange?.(e.target.value)} autoFocus />
+                  <textarea
+                    className="composer-input"
+                    value={editingContent}
+                    onChange={(e) => onEditContentChange?.(e.target.value)}
+                    rows={Math.min(6, (editingContent.match(/\n/g) || []).length + 2)}
+                    maxLength={4000}
+                    autoFocus
+                    style={{ minHeight: 36, resize: "none" }}
+                  />
                   <div className="edit-message-box__actions">
                     <button className="secondary-button" style={{ height: 30, padding: "0 12px", fontSize: "var(--text-xs)" }} type="button" onClick={onCancelEdit}>Cancel</button>
                     <button className="primary-button" style={{ height: 30, padding: "0 12px", fontSize: "var(--text-xs)" }} type="button" onClick={onSaveEdit}>Save</button>

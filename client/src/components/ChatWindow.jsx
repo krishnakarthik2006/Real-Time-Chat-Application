@@ -25,6 +25,7 @@ export default function ChatWindow({
   onAddReaction, onRemoveReaction,
   starredMessageIds, onToggleStar, onForwardMessage,
   onPollVote, onPinMessage,
+  onSetAnnouncement, onSetNickname,
 }) {
   const listRef = useRef(null);
   const endRef = useRef(null);
@@ -176,7 +177,10 @@ export default function ChatWindow({
         loadingCandidates={loadingGroupCandidates}
         onSearchTermChange={onGroupSearchTermChange} onRenameGroup={onRenameGroup}
         onAddMembers={onAddGroupMembers} onUpdateRole={onUpdateGroupRole}
-        onRemoveParticipant={onRemoveGroupParticipant} onClose={onToggleGroupPanel}
+        onRemoveParticipant={onRemoveGroupParticipant}
+        onSetAnnouncement={onSetAnnouncement}
+        onSetNickname={onSetNickname}
+        onClose={onToggleGroupPanel}
       />
 
       {/* User profile panel (1:1 chats) */}

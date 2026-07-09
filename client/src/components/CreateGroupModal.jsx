@@ -7,10 +7,23 @@ export default function CreateGroupModal({
   onSearchTermChange, onToggleUser, onClose, onCreateGroup,
 }) {
   const [groupName, setGroupName] = useState("");
+  const [nameError, setNameError] = useState("");
 
-  useEffect(() => { if (!open) setGroupName(""); }, [open]);
+  useEffect(() => { if (!open) { setGroupName(""); setNameError(""); } }, [open]);
 
   if (!open) return null;
+
+  function handleCreate() {
+    const trimmed = groupName.trim();
+    if (!trimmed) { setNameError("Group name is required."); return; }
+    if (trimmed.length < 2) { setNameError("Name must be at least 2 characters."); return; }
+    if (trimmed.length > 120) { setNameError("Name must be at most 120 characters."); return; }
+    if (!selectedUserIds.length) return;
+    setNameError("");
+    onCreateGroup(trimmed);
+  }
+
+  const nameValid = groupName.trim().length >= 2;
 
   return (
     <div className="modal-overlay" role="presentation">
@@ -37,9 +50,16 @@ export default function CreateGroupModal({
               type="text"
               placeholder="e.g. Weekend Plans"
               value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
+              maxLength={120}
+              onChange={(e) => { setGroupName(e.target.value); if (nameError) setNameError(""); }}
+              aria-invalid={!!nameError}
               autoFocus
             />
+            {nameError && (
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--clr-red)", marginTop: 3, display: "flex", alignItems: "center", gap: 4 }}>
+                ✗ {nameError}
+              </span>
+            )}
           </label>
 
           <label>
@@ -82,8 +102,8 @@ export default function CreateGroupModal({
           <button
             className="primary-button"
             type="button"
-            onClick={() => onCreateGroup(groupName)}
-            disabled={!groupName.trim() || !selectedUserIds.length}
+            onClick={handleCreate}
+            disabled={!nameValid || !selectedUserIds.length}
           >
             Create Group
           </button>

@@ -90,10 +90,17 @@ function SaveButton({ loading, saved, onClick }) {
 
 /* ── section panels ─────────────────────────────────────────── */
 
+const AVATAR_SEEDS = [
+  "cat", "dog", "fox", "bear", "lion", "panda", "rabbit",
+  "owl", "wolf", "tiger", "deer", "frog",
+];
+
 function ProfileSection({ user, token, onUserUpdated }) {
   const [name, setName] = useState(user?.name || "");
+  const [avatarSeed, setAvatarSeed] = useState(user?.avatarSeed || "");
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
   const [loading, setLoading] = useState(false);
   const [pwLoading, setPwLoading] = useState(false);
   const [error, setError] = useState("");
@@ -103,10 +110,16 @@ function ProfileSection({ user, token, onUserUpdated }) {
   const isGoogle = user?.authProvider === "google";
 
   async function saveName() {
-    if (!name.trim() || name.trim() === user.name) return;
+    if (!name.trim()) return;
+    const nameChanged = name.trim() !== user.name;
+    const seedChanged = avatarSeed !== user.avatarSeed;
+    if (!nameChanged && !seedChanged) return;
+
     setLoading(true); setError(""); setSaved(false);
     try {
-      const data = await request("/auth/profile", { method: "PATCH", token, body: { name: name.trim() } });
+      const body = { name: name.trim() };
+      if (seedChanged) body.avatarSeed = avatarSeed;
+      const data = await request("/auth/profile", { method: "PATCH", token, body });
       onUserUpdated(data.user);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -115,11 +128,18 @@ function ProfileSection({ user, token, onUserUpdated }) {
   }
 
   async function savePassword() {
-    if (!currentPw || !newPw) return;
+    if (!currentPw || !newPw || !confirmPw) { setPwError("All fields are required."); return; }
+    if (newPw !== confirmPw) { setPwError("New passwords do not match."); return; }
+    if (newPw === currentPw) { setPwError("New password must differ from current password."); return; }
+    if (newPw.length < 6) { setPwError("New password must be at least 6 characters."); return; }
+
     setPwLoading(true); setPwError(""); setPwSaved(false);
     try {
-      await request("/auth/password", { method: "PATCH", token, body: { currentPassword: currentPw, newPassword: newPw } });
-      setCurrentPw(""); setNewPw("");
+      await request("/auth/password", {
+        method: "PATCH", token,
+        body: { currentPassword: currentPw, newPassword: newPw, confirmNewPassword: confirmPw },
+      });
+      setCurrentPw(""); setNewPw(""); setConfirmPw("");
       setPwSaved(true);
       setTimeout(() => setPwSaved(false), 2500);
     } catch (e) { setPwError(e.message); }
@@ -128,6 +148,49 @@ function ProfileSection({ user, token, onUserUpdated }) {
 
   return (
     <div className="settings-panel-body">
+      {/* Avatar picker */}
+      <section className="settings-section">
+        <h3 className="settings-section__title">Avatar style</h3>
+        <p className="settings-row__sub" style={{ marginBottom: 10 }}>
+          Choose a seed that determines your avatar colours and initials style.
+        </p>
+        <div className="avatar-seed-grid">
+          {/* Current custom seed */}
+          <button
+            type="button"
+            className={`avatar-seed-btn${avatarSeed === user?.email?.toLowerCase() ? " avatar-seed-btn--active" : ""}`}
+            onClick={() => setAvatarSeed(user?.email?.toLowerCase() || "")}
+            title="Default (email-based)"
+          >
+            <div className="avatar avatar--small" style={{ background: "var(--clr-accent)" }}>
+              {(user?.name || "?")[0].toUpperCase()}
+            </div>
+            <span>Default</span>
+          </button>
+          {AVATAR_SEEDS.map((seed) => {
+            const hue = Array.from(seed).reduce((h, c) => h + c.charCodeAt(0), 0) % 360;
+            return (
+              <button
+                key={seed}
+                type="button"
+                className={`avatar-seed-btn${avatarSeed === seed ? " avatar-seed-btn--active" : ""}`}
+                onClick={() => setAvatarSeed(seed)}
+                title={seed}
+              >
+                <div
+                  className="avatar avatar--small"
+                  style={{ background: `linear-gradient(135deg, hsl(${hue} 72% 42%), hsl(${(hue + 42) % 360} 82% 58%))` }}
+                >
+                  {(user?.name || "?")[0].toUpperCase()}
+                </div>
+                <span style={{ textTransform: "capitalize" }}>{seed}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Display name */}
       <section className="settings-section">
         <h3 className="settings-section__title">Display name</h3>
         <label className="settings-field">
@@ -138,24 +201,38 @@ function ProfileSection({ user, token, onUserUpdated }) {
         <SaveButton loading={loading} saved={saved} onClick={saveName} />
       </section>
 
+      {/* Account info */}
       <section className="settings-section">
         <h3 className="settings-section__title">Account</h3>
         <Row label="Email" sub={user?.email} />
-        <Row label="Auth provider" sub={isGoogle ? "Google" : "Email & password"} />
+        <Row label="Auth provider" sub={isGoogle ? "Google OAuth" : "Email & password"} />
       </section>
 
+      {/* Change password — local accounts only */}
       {!isGoogle && (
         <section className="settings-section">
           <h3 className="settings-section__title">Change password</h3>
-          <label className="settings-field">
-            <span>Current password</span>
-            <input type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} placeholder="••••••••" />
-          </label>
-          <label className="settings-field" style={{ marginTop: 10 }}>
-            <span>New password</span>
-            <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="Min 6 characters" />
-          </label>
-          {pwError && <p className="settings-error">{pwError}</p>}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <label className="settings-field">
+              <span>Current password</span>
+              <input type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} placeholder="••••••••" autoComplete="current-password" />
+            </label>
+            <label className="settings-field">
+              <span>New password</span>
+              <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="Min 6 characters" autoComplete="new-password" />
+            </label>
+            <label className="settings-field">
+              <span>Confirm new password</span>
+              <input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} placeholder="Re-enter new password" autoComplete="new-password" />
+              {confirmPw && newPw && confirmPw === newPw && (
+                <span style={{ fontSize: "var(--text-xs)", color: "var(--clr-green)", marginTop: 3 }}>✓ Passwords match</span>
+              )}
+              {confirmPw && newPw && confirmPw !== newPw && (
+                <span style={{ fontSize: "var(--text-xs)", color: "var(--clr-red)", marginTop: 3 }}>✗ Passwords do not match</span>
+              )}
+            </label>
+          </div>
+          {pwError && <p className="settings-error" style={{ marginTop: 6 }}>{pwError}</p>}
           <SaveButton loading={pwLoading} saved={pwSaved} onClick={savePassword} />
         </section>
       )}

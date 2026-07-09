@@ -98,9 +98,14 @@ const me = asyncHandler(async (req, res) => {
 const updateProfile = asyncHandler(async (req, res) => {
   const payload = parseWithSchema(updateProfileSchema, req.body);
 
+  const updateFields = { name: payload.name };
+  if (payload.avatarSeed) {
+    updateFields.avatarSeed = payload.avatarSeed;
+  }
+
   const updated = await User.findByIdAndUpdate(
     req.user._id,
-    { $set: { name: payload.name } },
+    { $set: updateFields },
     { new: true, runValidators: true },
   ).lean();
 
@@ -110,6 +115,7 @@ const updateProfile = asyncHandler(async (req, res) => {
 });
 
 const changePassword = asyncHandler(async (req, res) => {
+  // confirmNewPassword is validated by Zod schema (passwords must match + differ from current)
   const payload = parseWithSchema(changePasswordSchema, req.body);
 
   if (req.user.authProvider === "google") {

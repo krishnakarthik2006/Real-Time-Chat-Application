@@ -1896,3 +1896,148 @@ kbd {
 .shared-media-link-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: var(--r-sm); flex-shrink: 0; }
 .shared-media-link-title { font-size: var(--text-xs); font-weight: 600; color: var(--clr-ink-2); }
 .shared-media-link-url { font-size: 10px; color: var(--clr-ink-3); }
+
+/* ============================================================
+   AUTH — password strength + field errors
+   ============================================================ */
+.password-strength {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.password-strength__bar {
+  display: flex;
+  gap: 3px;
+  flex: 1;
+}
+.password-strength__segment {
+  height: 4px;
+  flex: 1;
+  border-radius: var(--r-full);
+  transition: background .25s ease;
+}
+.password-strength__label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  min-width: 70px;
+  transition: color .25s ease;
+}
+
+/* Per-field validation error under an input */
+.auth-form label .field-error,
+.auth-form label span[style] {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  margin-top: 3px;
+}
+
+/* Red border on invalid fields */
+.auth-form input[aria-invalid="true"] {
+  border-color: var(--clr-red);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, .12);
+}
+
+/* ============================================================
+   AVATAR SEED PICKER (Settings → Profile)
+   ============================================================ */
+.avatar-seed-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.avatar-seed-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: var(--r-md);
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: all var(--ease);
+  background: var(--clr-surface-2);
+}
+.avatar-seed-btn span {
+  font-size: 10px;
+  color: var(--clr-ink-3);
+  font-weight: 500;
+  text-transform: capitalize;
+}
+.avatar-seed-btn:hover {
+  border-color: var(--clr-border-2);
+  background: var(--clr-hover);
+}
+.avatar-seed-btn--active {
+  border-color: var(--clr-accent);
+  background: var(--clr-accent-bg);
+}
+.avatar-seed-btn--active span { color: var(--clr-accent); font-weight: 700; }
+/* fix avatar shape inside the picker */
+.avatar-seed-btn .avatar {
+  min-width: 30px;
+  min-height: 30px;
+  width: 30px;
+  height: 30px;
+  aspect-ratio: 1 / 1;
+  font-size: 12px;
+}
+
+/* ============================================================
+   MESSAGE SEARCH — highlighted matches
+   ============================================================ */
+mark.search-highlight {
+  background: rgba(245, 158, 11, .35);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+  font-weight: 700;
+}
+
+.search-hit {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 14px;
+  width: 100%;
+  text-align: left;
+  border-bottom: 1px solid var(--clr-border);
+  cursor: pointer;
+  transition: background var(--ease);
+}
+.search-hit:hover { background: var(--clr-hover); }
+.search-hit:last-child { border-bottom: none; }
+.search-hit__sender {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--clr-accent);
+  display: block;
+  margin-bottom: 2px;
+}
+.search-hit__preview {
+  font-size: var(--text-sm);
+  color: var(--clr-ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.search-hit__time {
+  font-size: var(--text-xs);
+  color: var(--clr-ink-3);
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+
+/* ============================================================
+   GROUP PANEL — announcement row
+   ============================================================ */
+.group-panel__announcement-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+}

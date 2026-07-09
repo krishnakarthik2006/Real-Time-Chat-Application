@@ -66,7 +66,19 @@ export function AuthProvider({ children }) {
   }
 
   async function updateUser(updatedUser) {
+    // Accept the already-fetched user object directly (saves an extra round-trip
+    // when the caller already has fresh data from PATCH /auth/profile response)
+    // but also re-fetch from /auth/me to guarantee state is authoritative.
     setUser(updatedUser);
+    try {
+      const currentToken = localStorage.getItem(TOKEN_KEY);
+      if (currentToken) {
+        const data = await request("/auth/me", { token: currentToken });
+        setUser(data.user);
+      }
+    } catch {
+      // If re-fetch fails, the caller-supplied object is still used above
+    }
   }
 
   const value = {

@@ -30,6 +30,12 @@ export default function MessageComposer({
     const p = payload || { content: content.trim(), file, replyToMessageId: replyingTo?.id };
     if (!p.content && !p.file && !p.poll && !p.event && !p.gifUrl && !p.stickerUrl) return;
     if (disabled) return;
+
+    // Attach detected link preview metadata to text messages
+    if (!payload && p.content && detectedUrl) {
+      p.linkPreview = { url: detectedUrl };
+    }
+
     const result = await onSend(conversationId, p);
     if (result === false) return;
     clearTimeout(typingTimeoutRef.current);
