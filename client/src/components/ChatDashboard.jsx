@@ -738,7 +738,10 @@ export default memo(function ChatDashboard() {
         message.conversationId,
       ).muted;
 
-      if (shouldNotify && !isMuted) {
+      // Also respect the global mute-all toggle from Settings
+      const isGlobalMuted = localStorage.getItem("notif-mute-all") === "true";
+
+      if (shouldNotify && !isMuted && !isGlobalMuted) {
         notify({
           title,
           body: formatInlinePreview(message),
