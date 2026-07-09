@@ -16,6 +16,7 @@ import { useConversationOperations, useLocalStorage } from "../hooks/useOptimize
 import { conversationApi } from "../utils/apiHelpers";
 import ChatWindow from "./ChatWindow";
 import CreateGroupModal from "./CreateGroupModal";
+import ForwardMessageModal from "./ForwardMessageModal";
 import Sidebar from "./Sidebar";
 import StatusToast from "./StatusToast";
 import {
@@ -188,6 +189,14 @@ export default memo(function ChatDashboard() {
   const [loadingGroupManagerCandidates, setLoadingGroupManagerCandidates] = useState(false);
   const [mobilePane, setMobilePane] = useState("list");
   const selectedConversationIdRef = useRef(null);
+
+  // Starred messages — stored in localStorage per user
+  const [starredMessageIds, setStarredMessageIds] = useLocalStorage(
+    `pulse-starred-${user.id}`,
+    [],
+  );
+  // Forward modal
+  const [forwardingMessage, setForwardingMessage] = useState(null);
   const conversationsRef = useRef([]);
   const highlightTimeoutRef = useRef(null);
   const sendingMessageRef = useRef(false);
@@ -1055,21 +1064,56 @@ export default memo(function ChatDashboard() {
 
   const handleAddReaction = useCallback(async (messageId, emoji) => {
     if (!selectedConversationId) return;
-    try {
-      await conversationApi.addReaction(selectedConversationId, messageId, emoji, token);
-    } catch (error) {
-      setStatusMessage(error.message);
-    }
+    try { await conversationApi.addReaction(selectedConversationId, messageId, emoji, token); }
+    catch (error) { setStatusMessage(error.message); }
   }, [selectedConversationId, token]);
 
   const handleRemoveReaction = useCallback(async (messageId, emoji) => {
     if (!selectedConversationId) return;
-    try {
-      await conversationApi.removeReaction(selectedConversationId, messageId, emoji, token);
-    } catch (error) {
-      setStatusMessage(error.message);
-    }
+    try { await conversationApi.removeReaction(selectedConversationId, messageId, emoji, token); }
+    catch (error) { setStatusMessage(error.message); }
   }, [selectedConversationId, token]);
+
+  const handlePollVote = useCallback(async (messageId, optionIds) => {
+    if (!selectedConversationId) return;
+    try { await conversationApi.castPollVote(selectedConversationId, messageId, optionIds, token); }
+    catch (error) { setStatusMessage(error.message); }
+  }, [selectedConversationId, token]);
+
+  const handlePinMessage = useCallback(async (message, pin) => {
+    if (!selectedConversationId) return;
+    try { await conversationApi.pinMessage(selectedConversationId, message.id, pin, token); }
+    catch (error) { setStatusMessage(error.message); }
+  }, [selectedConversationId, token]);
+
+  const handleToggleStar = useCallback((message) => {
+    setStarredMessageIds((current) => {
+      if (current.includes(message.id)) {
+        return current.filter((id) => id !== message.id);
+      }
+      return [...current, message.id];
+    });
+  }, [setStarredMessageIds]);
+
+  const handleForwardMessage = useCallback(async (message, conversationIds) => {
+    await Promise.all(
+      conversationIds.map((cid) =>
+        sendMessage(cid, {
+          content: message.content || "",
+          // carry over file attachment if present
+          ...(message.attachment && !message.isDeleted
+            ? {
+                messageType: message.messageType,
+                fileName: message.attachment.name,
+                fileUrl: message.attachment.url,
+                fileSize: message.attachment.size,
+                mimeType: message.attachment.mimeType,
+              }
+            : {}),
+        }),
+      ),
+    );
+  }, [sendMessage]);
 
   async function saveEditedMessage(messageId) {
     if (!selectedConversationId || !editingContent.trim()) {
@@ -1340,6 +1384,11 @@ export default memo(function ChatDashboard() {
             }}
             onAddReaction={handleAddReaction}
             onRemoveReaction={handleRemoveReaction}
+            starredMessageIds={starredMessageIds}
+            onToggleStar={handleToggleStar}
+            onForwardMessage={(msg) => setForwardingMessage(msg)}
+            onPollVote={handlePollVote}
+            onPinMessage={handlePinMessage}
           />
         </section>
       </main>
@@ -1364,6 +1413,14 @@ export default memo(function ChatDashboard() {
           setSelectedGroupUserIds([]);
         }}
         onCreateGroup={createGroupConversation}
+      />
+
+      <ForwardMessageModal
+        message={forwardingMessage}
+        conversations={conversations}
+        currentUser={user}
+        onForward={handleForwardMessage}
+        onClose={() => setForwardingMessage(null)}
       />
     </>
   );

@@ -23,6 +23,8 @@ export default function ChatWindow({
   isMobileLayout, showBackButton, onBackToList,
   onTogglePinConversation, onToggleMuteConversation, onToggleArchiveConversation,
   onAddReaction, onRemoveReaction,
+  starredMessageIds, onToggleStar, onForwardMessage,
+  onPollVote, onPinMessage,
 }) {
   const listRef = useRef(null);
   const endRef = useRef(null);
@@ -237,6 +239,8 @@ export default function ChatWindow({
                 editingContent={editingMessageId === msg.id ? editingContent : ""}
                 showSender={isGroup && !isOwnMsg && isNewGroup}
                 isNewGroup={isNewGroup && i > 0}
+                isStarred={starredMessageIds?.includes(msg.id)}
+                conversation={conversation}
                 onEditContentChange={onEditContentChange}
                 onStartReply={onReplyToMessage}
                 onStartEdit={onStartEdit}
@@ -245,6 +249,10 @@ export default function ChatWindow({
                 onDelete={onDeleteMessage}
                 onAddReaction={onAddReaction}
                 onRemoveReaction={onRemoveReaction}
+                onToggleStar={onToggleStar}
+                onForward={onForwardMessage}
+                onPollVote={onPollVote}
+                onPinMessage={onPinMessage}
                 currentUserId={currentUser.id}
               />
             </Fragment>
@@ -260,6 +268,7 @@ export default function ChatWindow({
         conversationId={conversation.id} socket={socket}
         onSend={onSendMessage} disabled={sendingMessage}
         replyingTo={replyTarget} onCancelReply={onCancelReply}
+        participants={conversation.participants}
       />
     </section>
   );

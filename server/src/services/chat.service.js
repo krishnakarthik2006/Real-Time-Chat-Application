@@ -89,6 +89,30 @@ function mapReactions(reactions) {
   }));
 }
 
+function mapPoll(poll) {
+  if (!poll?.question) return null;
+  return {
+    question: poll.question,
+    options: (poll.options || []).map((o) => ({
+      id: String(o._id),
+      text: o.text,
+      votes: (o.votes || []).map((v) => (v?._id ? String(v._id) : String(v))),
+    })),
+    allowMultiple: poll.allowMultiple,
+    closedAt: poll.closedAt || null,
+  };
+}
+
+function mapEvent(event) {
+  if (!event?.title) return null;
+  return {
+    title: event.title,
+    description: event.description || "",
+    eventType: event.eventType || "other",
+    startsAt: event.startsAt || null,
+  };
+}
+
 function mapMessageDoc(message) {
   const isDeleted = Boolean(message.isDeleted);
 
@@ -102,6 +126,14 @@ function mapMessageDoc(message) {
     status: message.status,
     replyTo: mapReplyMessage(message.replyToMessage),
     reactions: isDeleted ? [] : mapReactions(message.reactions),
+    poll: isDeleted ? null : mapPoll(message.poll),
+    event: isDeleted ? null : mapEvent(message.event),
+    gifUrl: isDeleted ? null : (message.gifUrl || null),
+    gifTitle: isDeleted ? null : (message.gifTitle || null),
+    stickerUrl: isDeleted ? null : (message.stickerUrl || null),
+    linkPreview: isDeleted ? null : (message.linkPreview?.url ? message.linkPreview : null),
+    readBy: (message.readBy || []).map((u) => (u?._id ? String(u._id) : String(u))),
+    isPinned: Boolean(message.isPinned),
     isDeleted,
     deletedAt: message.deletedAt,
     editedAt: message.editedAt,
@@ -149,6 +181,10 @@ function mapConversation(conversation, lastMessage, unreadCount) {
     createdAt: conversation.createdAt,
     updatedAt: conversation.updatedAt,
     unreadCount,
+    isAnnouncement: Boolean(conversation.isAnnouncement),
+    nicknames: conversation.nicknames ? Object.fromEntries(conversation.nicknames) : {},
+    pinnedMessages: (conversation.pinnedMessages || []).map((id) => String(id)),
+    wallpaper: conversation.wallpaper || null,
     participants: [...conversation.participants]
       .map(mapParticipant)
       .sort((left, right) => left.name.localeCompare(right.name)),
@@ -660,7 +696,17 @@ async function searchMessagesInConversation(userId, conversationId, search, limi
 }
 
 async function createMessage(userId, conversationId, payload) {
-  await requireConversationMembership(conversationId, userId);
+  const membership = await requireConversationMembership(conversationId, userId);
+
+  // Announcement group: only admins may send
+  if (membership.type === "group") {
+    const conv = await Conversation.findById(toObjectId(conversationId, "Conversation"))
+      .select("isAnnouncement")
+      .lean();
+    if (conv?.isAnnouncement && membership.role !== "admin") {
+      throw new AppError("Only admins can send messages in an announcement group.", 403);
+    }
+  }
 
   const conversationObjectId = toObjectId(conversationId, "Conversation");
   const userObjectId = toObjectId(userId, "User");
@@ -694,6 +740,13 @@ async function createMessage(userId, conversationId, payload) {
     mimeType: payload.mimeType || null,
     status: initialStatus,
     replyToMessage: payload.replyToMessageId ? toObjectId(payload.replyToMessageId, "Message") : null,
+    // New fields
+    poll: payload.poll || undefined,
+    event: payload.event || undefined,
+    gifUrl: payload.gifUrl || null,
+    gifTitle: payload.gifTitle || null,
+    stickerUrl: payload.stickerUrl || null,
+    linkPreview: payload.linkPreview || undefined,
   });
 
   await Conversation.findByIdAndUpdate(conversationObjectId, {
@@ -955,6 +1008,119 @@ async function removeReactionFromMessage(userId, conversationId, messageId, emoj
   return getMessageById(messageId);
 }
 
+async function voteOnPoll(userId, conversationId, messageId, optionIds) {
+  await requireConversationMembership(conversationId, userId);
+  const userObjId = toObjectId(userId, "User");
+  const msg = await Message.findOne({
+    _id: toObjectId(messageId, "Message"),
+    conversation: toObjectId(conversationId, "Conversation"),
+    messageType: "poll",
+    isDeleted: false,
+  });
+  if (!msg) throw new AppError("Poll not found.", 404);
+  if (msg.poll.closedAt && new Date() > msg.poll.closedAt) throw new AppError("This poll is closed.", 400);
+
+  // Remove existing votes from this user
+  msg.poll.options.forEach((opt) => {
+    opt.votes = opt.votes.filter((v) => !isSameId(v, userId));
+  });
+  // Add new votes
+  const allowMultiple = msg.poll.allowMultiple;
+  const chosen = allowMultiple ? optionIds : [optionIds[0]];
+  chosen.forEach((oid) => {
+    const opt = msg.poll.options.id(oid);
+    if (opt && !opt.votes.some((v) => isSameId(v, userId))) {
+      opt.votes.push(userObjId);
+    }
+  });
+  msg.markModified("poll.options");
+  await msg.save();
+  return getMessageById(messageId);
+}
+
+async function pinMessage(userId, conversationId, messageId, pin) {
+  await requireGroupAdmin(conversationId, userId);
+  const msgObjId = toObjectId(messageId, "Message");
+  const convObjId = toObjectId(conversationId, "Conversation");
+  const [conv] = await Promise.all([
+    Conversation.findById(convObjId),
+    Message.findByIdAndUpdate(msgObjId, { $set: { isPinned: pin } }),
+  ]);
+  if (!conv) throw new AppError("Conversation not found.", 404);
+  if (pin) {
+    if (!conv.pinnedMessages.some((id) => String(id) === messageId)) {
+      conv.pinnedMessages = [msgObjId, ...conv.pinnedMessages].slice(0, 3);
+    }
+  } else {
+    conv.pinnedMessages = conv.pinnedMessages.filter((id) => String(id) !== messageId);
+  }
+  await conv.save();
+  return getConversationForUser(conversationId, userId);
+}
+
+async function setNickname(userId, conversationId, targetUserId, nickname) {
+  await requireConversationMembership(conversationId, userId);
+  const conv = await Conversation.findById(toObjectId(conversationId, "Conversation"));
+  if (!conv) throw new AppError("Conversation not found.", 404);
+  if (nickname) {
+    conv.nicknames.set(targetUserId, nickname);
+  } else {
+    conv.nicknames.delete(targetUserId);
+  }
+  await conv.save();
+  return getConversationForUser(conversationId, userId);
+}
+
+async function setAnnouncementMode(userId, conversationId, isAnnouncement) {
+  await requireGroupAdmin(conversationId, userId);
+  await Conversation.findByIdAndUpdate(
+    toObjectId(conversationId, "Conversation"),
+    { $set: { isAnnouncement } },
+  );
+  return getConversationForUser(conversationId, userId);
+}
+
+async function getPinnedMessages(userId, conversationId) {
+  await requireConversationMembership(conversationId, userId);
+  const conv = await Conversation.findById(toObjectId(conversationId, "Conversation"))
+    .select("pinnedMessages")
+    .lean();
+  if (!conv?.pinnedMessages?.length) return [];
+  const msgs = await populateMessageQuery(
+    Message.find({ _id: { $in: conv.pinnedMessages }, isDeleted: false }),
+  ).lean();
+  return msgs.map(mapMessageDoc);
+}
+
+async function getSharedMedia(userId, conversationId, mediaType) {
+  await requireConversationMembership(conversationId, userId);
+  const convObjId = toObjectId(conversationId, "Conversation");
+  let filter = { conversation: convObjId, isDeleted: false };
+
+  if (mediaType === "images") {
+    filter.messageType = "file";
+    filter.mimeType = /^image\//;
+  } else if (mediaType === "videos") {
+    filter.messageType = "file";
+    filter.mimeType = /^video\//;
+  } else if (mediaType === "audio") {
+    filter.messageType = { $in: ["audio", "file"] };
+    filter.mimeType = /^audio\//;
+  } else if (mediaType === "documents") {
+    filter.messageType = "file";
+    filter.mimeType = { $not: /^(image|video|audio)\// };
+  } else if (mediaType === "links") {
+    filter["linkPreview.url"] = { $exists: true, $ne: null };
+  } else if (mediaType === "gifs") {
+    filter.messageType = "gif";
+  }
+
+  const msgs = await populateMessageQuery(
+    Message.find(filter).sort({ _id: -1 }).limit(50),
+  ).lean();
+  return msgs.map(mapMessageDoc);
+}
+
 module.exports = {
   findUserByEmail,
   findUserById,
@@ -980,4 +1146,10 @@ module.exports = {
   addReactionToMessage,
   removeReactionFromMessage,
   getConversationParticipantIds,
+  voteOnPoll,
+  pinMessage,
+  setNickname,
+  setAnnouncementMode,
+  getPinnedMessages,
+  getSharedMedia,
 };

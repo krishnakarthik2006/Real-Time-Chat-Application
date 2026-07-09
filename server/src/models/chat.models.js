@@ -96,6 +96,28 @@ const conversationSchema = new Schema(
         message: "Conversation must have at least one participant.",
       },
     },
+    // Group-only: only admins can send messages
+    isAnnouncement: {
+      type: Boolean,
+      default: false,
+    },
+    // Group-only: per-user display name overrides
+    nicknames: {
+      type: Map,
+      of: String,
+      default: {},
+    },
+    // Pinned message IDs (ordered, max 3)
+    pinnedMessages: {
+      type: [{ type: Schema.Types.ObjectId, ref: "Message" }],
+      default: [],
+    },
+    // Per-conversation wallpaper key
+    wallpaper: {
+      type: String,
+      default: null,
+      maxlength: 80,
+    },
   },
   {
     timestamps: true,
@@ -122,6 +144,14 @@ const reactionSchema = new Schema(
   { _id: false },
 );
 
+const pollOptionSchema = new Schema(
+  {
+    text: { type: String, required: true, maxlength: 120 },
+    votes: [{ type: Schema.Types.ObjectId, ref: "User" }],
+  },
+  { _id: true },
+);
+
 const messageSchema = new Schema(
   {
     conversation: {
@@ -139,32 +169,48 @@ const messageSchema = new Schema(
     content: {
       type: String,
       default: "",
-      maxlength: 2000,
+      maxlength: 4000,
     },
     messageType: {
       type: String,
-      enum: ["text", "file"],
+      enum: ["text", "file", "audio", "poll", "event", "gif", "sticker"],
       default: "text",
     },
-    fileName: {
-      type: String,
-      default: null,
-      maxlength: 255,
+    // File fields
+    fileName: { type: String, default: null, maxlength: 255 },
+    fileUrl:  { type: String, default: null, maxlength: 500 },
+    fileSize: { type: Number, default: null },
+    mimeType: { type: String, default: null, maxlength: 120 },
+    // Poll
+    poll: {
+      question: { type: String, default: null, maxlength: 300 },
+      options:  { type: [pollOptionSchema], default: [] },
+      allowMultiple: { type: Boolean, default: false },
+      closedAt: { type: Date, default: null },
     },
-    fileUrl: {
-      type: String,
-      default: null,
-      maxlength: 500,
+    // Event
+    event: {
+      title:       { type: String, default: null, maxlength: 120 },
+      description: { type: String, default: null, maxlength: 500 },
+      eventType:   { type: String, enum: ["birthday", "meeting", "reminder", "other"], default: "other" },
+      startsAt:    { type: Date, default: null },
     },
-    fileSize: {
-      type: Number,
-      default: null,
+    // GIF / sticker
+    gifUrl:    { type: String, default: null, maxlength: 500 },
+    gifTitle:  { type: String, default: null, maxlength: 120 },
+    stickerUrl:{ type: String, default: null, maxlength: 500 },
+    // Link preview (populated server-side or client-reported)
+    linkPreview: {
+      url:         { type: String, default: null, maxlength: 500 },
+      title:       { type: String, default: null, maxlength: 200 },
+      description: { type: String, default: null, maxlength: 400 },
+      image:       { type: String, default: null, maxlength: 500 },
+      siteName:    { type: String, default: null, maxlength: 80 },
     },
-    mimeType: {
-      type: String,
-      default: null,
-      maxlength: 120,
-    },
+    // Read-by tracking (users who have seen this specific message)
+    readBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    // Pinned in conversation
+    isPinned: { type: Boolean, default: false },
     status: {
       type: String,
       enum: ["sent", "delivered", "seen"],
@@ -180,18 +226,9 @@ const messageSchema = new Schema(
       type: [reactionSchema],
       default: [],
     },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
-    deletedAt: {
-      type: Date,
-      default: null,
-    },
-    editedAt: {
-      type: Date,
-      default: null,
-    },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date, default: null },
+    editedAt:  { type: Date, default: null },
   },
   {
     timestamps: true,

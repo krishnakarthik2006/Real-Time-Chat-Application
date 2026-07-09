@@ -167,6 +167,44 @@ export const conversationApi = {
       { method: "DELETE", token },
     );
   },
+
+  // Cast poll vote
+  async castPollVote(conversationId, messageId, optionIds, token) {
+    return apiRequest(`/conversations/${conversationId}/messages/${messageId}/vote`, {
+      method: "POST", token, body: { optionIds },
+    });
+  },
+
+  // Pin / unpin a message
+  async pinMessage(conversationId, messageId, pin, token) {
+    return apiRequest(`/conversations/${conversationId}/messages/${messageId}/pin`, {
+      method: "PATCH", token, body: { pin },
+    });
+  },
+
+  // Get pinned messages
+  async getPinnedMessages(conversationId, token) {
+    return apiRequest(`/conversations/${conversationId}/messages/pinned`, { token });
+  },
+
+  // Set nickname
+  async setNickname(conversationId, userId, nickname, token) {
+    return apiRequest(`/conversations/${conversationId}/group/nickname`, {
+      method: "PATCH", token, body: { userId, nickname },
+    });
+  },
+
+  // Announcement mode
+  async setAnnouncement(conversationId, isAnnouncement, token) {
+    return apiRequest(`/conversations/${conversationId}/group/announcement`, {
+      method: "PATCH", token, body: { isAnnouncement },
+    });
+  },
+
+  // Shared media
+  async getSharedMedia(conversationId, type, token) {
+    return apiRequest(`/conversations/${conversationId}/media?type=${encodeURIComponent(type)}`, { token });
+  },
 };
 
 // User API functions

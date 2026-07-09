@@ -12,6 +12,10 @@ const {
   addGroupParticipantsSchema,
   updateGroupRoleSchema,
   reactionSchema,
+  pollVoteSchema,
+  pinMessageSchema,
+  nicknameSchema,
+  announcementSchema,
 } = require("../validators/chat.schemas");
 const {
   searchUsers,
@@ -32,6 +36,12 @@ const {
   addReactionToMessage,
   removeReactionFromMessage,
   getConversationParticipantIds: getConversationParticipantIdsFromService,
+  voteOnPoll,
+  pinMessage,
+  setNickname,
+  setAnnouncementMode,
+  getPinnedMessages,
+  getSharedMedia,
 } = require("../services/chat.service");
 const { userRoom, conversationRoom } = require("../services/presence.service");
 
@@ -279,6 +289,75 @@ const removeReaction = asyncHandler(async (req, res) => {
   res.json({ message });
 });
 
+/* ── Poll vote ──────────────────────────────────────────────── */
+const castPollVote = asyncHandler(async (req, res) => {
+  const payload = parseWithSchema(pollVoteSchema, req.body);
+  const { conversationId, messageId } = req.params;
+  const message = await voteOnPoll(req.user.id, conversationId, messageId, payload.optionIds);
+
+  const allParticipantIds = await getConversationParticipantIdsFromService(conversationId);
+  allParticipantIds.forEach((pid) => req.io.to(userRoom(pid)).emit("message:update", message));
+
+  res.json({ message });
+});
+
+/* ── Pin message ────────────────────────────────────────────── */
+const pinMsg = asyncHandler(async (req, res) => {
+  const { conversationId, messageId } = req.params;
+  const { pin } = req.body; // true/false
+  const conversation = await pinMessage(req.user.id, conversationId, messageId, Boolean(pin));
+
+  await emitConversationUpsert(
+    req.io, conversation.id,
+    conversation.participants.map((p) => p.id),
+  );
+  const allParticipantIds = await getConversationParticipantIdsFromService(conversationId);
+  allParticipantIds.forEach((pid) => req.io.to(userRoom(pid)).emit("message:pinned", { conversationId, messageId, pin: Boolean(pin) }));
+
+  res.json({ conversation });
+});
+
+/* ── Get pinned messages ────────────────────────────────────── */
+const listPinnedMessages = asyncHandler(async (req, res) => {
+  const { conversationId } = req.params;
+  const messages = await getPinnedMessages(req.user.id, conversationId);
+  res.json({ messages });
+});
+
+/* ── Nickname ───────────────────────────────────────────────── */
+const updateNickname = asyncHandler(async (req, res) => {
+  const payload = parseWithSchema(nicknameSchema, req.body);
+  const { conversationId } = req.params;
+  const conversation = await setNickname(req.user.id, conversationId, payload.userId, payload.nickname);
+
+  await emitConversationUpsert(
+    req.io, conversation.id,
+    conversation.participants.map((p) => p.id),
+  );
+  res.json({ conversation });
+});
+
+/* ── Announcement mode ──────────────────────────────────────── */
+const setAnnouncement = asyncHandler(async (req, res) => {
+  const payload = parseWithSchema(announcementSchema, req.body);
+  const { conversationId } = req.params;
+  const conversation = await setAnnouncementMode(req.user.id, conversationId, payload.isAnnouncement);
+
+  await emitConversationUpsert(
+    req.io, conversation.id,
+    conversation.participants.map((p) => p.id),
+  );
+  res.json({ conversation });
+});
+
+/* ── Shared media ───────────────────────────────────────────── */
+const listSharedMedia = asyncHandler(async (req, res) => {
+  const { conversationId } = req.params;
+  const { type = "images" } = req.query;
+  const messages = await getSharedMedia(req.user.id, conversationId, type);
+  res.json({ messages });
+});
+
 module.exports = {
   listUsers,
   listConversations,
@@ -296,4 +375,10 @@ module.exports = {
   markRead,
   addReaction,
   removeReaction,
+  castPollVote,
+  pinMsg,
+  listPinnedMessages,
+  updateNickname,
+  setAnnouncement,
+  listSharedMedia,
 };

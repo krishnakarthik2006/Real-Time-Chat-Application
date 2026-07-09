@@ -32,29 +32,79 @@ const searchMessagesQuerySchema = z.object({
 
 const messageSchema = z
   .object({
-    content: z.string().trim().max(2000).optional().default(""),
-    messageType: z.enum(["text", "file"]).optional().default("text"),
+    content: z.string().trim().max(4000).optional().default(""),
+    messageType: z.enum(["text", "file", "audio", "poll", "event", "gif", "sticker"]).optional().default("text"),
     replyToMessageId: objectIdSchema.optional(),
     fileName: z.string().trim().max(255).nullish(),
     fileUrl: z.string().trim().max(500).nullish(),
     fileSize: z.coerce.number().int().positive().nullish(),
     mimeType: z.string().trim().max(120).nullish(),
+    // Poll
+    poll: z.object({
+      question: z.string().trim().min(1).max(300),
+      options: z.array(z.object({ text: z.string().trim().min(1).max(120) })).min(2).max(10),
+      allowMultiple: z.boolean().optional().default(false),
+    }).optional(),
+    // Event
+    event: z.object({
+      title: z.string().trim().min(1).max(120),
+      description: z.string().trim().max(500).optional().default(""),
+      eventType: z.enum(["birthday", "meeting", "reminder", "other"]).optional().default("other"),
+      startsAt: z.string().datetime({ offset: true }).optional(),
+    }).optional(),
+    // GIF
+    gifUrl:   z.string().trim().max(500).nullish(),
+    gifTitle: z.string().trim().max(120).nullish(),
+    // Sticker
+    stickerUrl: z.string().trim().max(500).nullish(),
+    // Link preview
+    linkPreview: z.object({
+      url:         z.string().trim().max(500),
+      title:       z.string().trim().max(200).optional(),
+      description: z.string().trim().max(400).optional(),
+      image:       z.string().trim().max(500).optional(),
+      siteName:    z.string().trim().max(80).optional(),
+    }).optional(),
   })
   .superRefine((value, context) => {
-    if (!value.content && !value.fileUrl) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Message content or a file is required.",
-      });
+    const hasContent = value.content;
+    const hasFile    = value.fileUrl;
+    const hasPoll    = value.poll;
+    const hasEvent   = value.event;
+    const hasGif     = value.gifUrl;
+    const hasSticker = value.stickerUrl;
+
+    if (!hasContent && !hasFile && !hasPoll && !hasEvent && !hasGif && !hasSticker) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: "Message content or a file is required." });
     }
 
     if (value.messageType === "file" && !value.fileUrl) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "File messages must include an uploaded file URL.",
-      });
+      context.addIssue({ code: z.ZodIssueCode.custom, message: "File messages must include an uploaded file URL." });
+    }
+    if (value.messageType === "poll" && !value.poll) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: "Poll messages must include poll data." });
+    }
+    if (value.messageType === "event" && !value.event) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: "Event messages must include event data." });
     }
   });
+
+const pollVoteSchema = z.object({
+  optionIds: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/)).min(1),
+});
+
+const pinMessageSchema = z.object({
+  messageId: objectIdSchema,
+});
+
+const nicknameSchema = z.object({
+  userId: objectIdSchema,
+  nickname: z.string().trim().max(50),
+});
+
+const announcementSchema = z.object({
+  isAnnouncement: z.boolean(),
+});
 
 const editMessageSchema = z.object({
   content: z
@@ -94,4 +144,8 @@ module.exports = {
   addGroupParticipantsSchema,
   updateGroupRoleSchema,
   reactionSchema,
+  pollVoteSchema,
+  pinMessageSchema,
+  nicknameSchema,
+  announcementSchema,
 };
