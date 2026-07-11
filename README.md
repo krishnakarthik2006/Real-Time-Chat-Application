@@ -1,6 +1,6 @@
-# PulseChat
+# Real-Time Chat Application
 
-A full-stack, feature-rich real-time chat application built with React 19, Node.js, Socket.io, and MongoDB.
+A full-stack real-time chat application built with React, Vite, Express, Socket.io, and MongoDB. It includes one-to-one chats, group conversations, file sharing, presence, typing indicators, read receipts, and a polished responsive UI.
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![React](https://img.shields.io/badge/React-19-61dafb)
@@ -8,227 +8,81 @@ A full-stack, feature-rich real-time chat application built with React 19, Node.
 ![Socket.io](https://img.shields.io/badge/Socket.io-4.8-black)
 ![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose-47a248)
 
----
+## Overview
 
-## Features
+This project provides a complete messaging experience with:
 
-### Core Messaging
-- Real-time text messaging via WebSocket (Socket.io)
-- **Markdown support** — `**bold**`, `*italic*`, `` `inline code` `` rendered inline
-- Reply-to-message with quoted preview
-- Edit and delete your own messages (soft delete)
-- File attachments — images, PDFs, Word, Excel, plain text (up to 5 MB)
-- **Voice messages** — record audio in-browser via MediaRecorder, upload and play inline
-- **Message forwarding** — forward any message to one or more conversations
-- **Message starring** — star important messages, persisted per user in localStorage
-- **Emoji reactions** — 8 emojis, persistent, real-time synced to all participants
-- **GIF support** — Giphy API integration with search and trending (requires `VITE_GIPHY_API_KEY`)
-- **Stickers** — 20 emoji stickers, rendered large in the bubble
-- **Polls** — create polls with 2–10 options, optional multi-select, live vote percentage bars
-- **Events** — send structured event cards: Birthday, Meeting, Reminder, or Other with title, description, and date/time
-- **Link preview** — URL metadata (title, description, image, site name) stored and rendered as a card
-- **@Mentions** — `@name` autocomplete from conversation participants, highlighted in bubbles
-- **#Hashtags** — detected and styled in accent colour
-- Message search inside any conversation
-- Cursor-based pagination — loads 30 messages at a time with a "Load older messages" button
-- Draft persistence per conversation (localStorage)
-- Day dividers in message list
-
-### Conversations
-- Direct (1:1) conversations — deduplicated, no self-DMs
-- Group chats with full admin controls: rename, add/remove members, promote/demote admin
-- **Announcement groups** — toggle mode where only admins can send messages
-- **Pinned messages** — pin up to 3 messages per group (admin only), shown with indicator
-- **Nicknames** — set custom display names per user inside a group (server-persisted)
-- At-least-one-admin enforcement on removal and demotion
-- Unread count badges (capped at 99+)
-- Pin, mute, and archive per conversation (client-side preference)
-- Filter conversations: All / Unread / Direct / Groups
-- Inbox and Archived views
-- User profile panel — click any avatar in a 1:1 chat to view profile
-
-### Shared Media
-- Dedicated **Shared Media panel** with 6 tabs: Images, Videos, Documents, Links, Audio, GIFs
-- All media fetched from server filtered by MIME type
-
-### Presence & Status
-- Online / offline dot on avatars (multi-tab aware via Set of socket IDs)
-- "Last seen X ago" with relative time formatting
-- 3-stage delivery receipts: `sent` → `delivered` → `seen` with WhatsApp-style checkmarks
-- **Read-by list** — group messages show an eye icon with count; expand to see which members read it
-- Typing indicators with multi-user display ("X is typing" / "N people are typing")
-
-### User & Settings
-- Settings modal with 7 sections, accessible from sidebar gear icon:
-  - **Profile** — edit display name, change password (local accounts), view auth provider
-  - **Appearance** — Light/Dark theme, 5 accent colours, font size (S/M/L), message density (Compact/Cozy)
-  - **Chat** — Enter-to-send toggle, timestamp visibility, message sounds, keyboard shortcuts reference
-  - **Notifications** — browser push toggle, global mute-all
-  - **Privacy** — read receipts, last-seen, online-status toggles
-  - **Data & storage** — clear drafts/preferences with confirm step, sign out
-  - **About** — version, tech stack, full keyboard shortcut reference
-
-### Auth
-- Email/password registration and login (JWT, 7-day expiry)
-- Google OAuth sign-in via `@react-oauth/google`
-- Session auto-restore on page reload (`GET /api/auth/me`)
-- Profile name and password update via API
-
-### Notifications
-- Browser push via Service Worker (`/notification-sw.js`)
-- Respects per-conversation mute preference and global mute-all toggle
-- Only fires when tab is hidden or a different conversation is active
-- Notification click navigates directly to the relevant conversation
-
-### Performance & UX
-- Fully responsive — mobile layout below 720 px with pane-based navigation
-- URL deep-linking via `?conversationId=` query param
-- Lazy-loaded `ChatDashboard` chunk — reduces initial JS payload by ~35 %
-- In-flight GET deduplication in the API client
-- Gzip compression on all server responses
-- Bulk aggregation queries for conversation list (2 queries instead of 2N)
-- Status error toast — dismissable, auto-expires after 5 s
-- Socket errors only surface after 3 consecutive failures (transient blips suppressed)
-
----
+- Real-time text, file, voice, poll, event, GIF, and sticker messages
+- Group management, announcements, pinned messages, and nicknames
+- Presence and last-seen tracking with browser notifications
+- JWT-based authentication, local login, and Google OAuth support
+- Search, media panels, drafts, and client-side preferences
 
 ## Tech Stack
 
-| Layer | Technology |
+| Layer | Stack |
 |---|---|
 | Frontend | React 19, Vite 6, socket.io-client 4.8 |
-| Styling | Plain CSS with design tokens (no CSS framework) |
-| Icons | lucide-react |
-| Auth (OAuth) | @react-oauth/google |
-| GIF API | Giphy API (free tier) |
 | Backend | Node.js, Express 4, Socket.io 4.8 |
 | Database | MongoDB, Mongoose 9 |
+| Auth | JWT, bcryptjs, @react-oauth/google |
 | Validation | Zod 3 |
-| File uploads | Multer 2 |
-| Compression | compression 1.7 |
-| Auth (server) | jsonwebtoken, bcryptjs |
-| Dev tooling | Vite HMR, nodemon, concurrently |
+| Uploads | Multer 2 |
+| Styling | Plain CSS with design tokens |
 
----
+## Features
+
+### Messaging
+- Direct and group conversations
+- Message edit, delete, reply, forward, star, and reactions
+- Shared media panel for images, videos, documents, links, audio, and GIFs
+- Draft persistence per conversation
+- Cursor-based message pagination and in-conversation search
+
+### Presence and realtime updates
+- Online/offline status indicators
+- Typing indicators
+- Delivery and read receipts
+- Socket-based conversation and message synchronization
+
+### User experience
+- Light and dark theme support
+- Custom accent colors, font size, and density settings
+- Responsive layout for desktop and mobile
+- Browser notifications with mute and per-conversation controls
 
 ## Project Structure
 
-```
+```text
 .
-├── client/                        # React + Vite frontend
-│   ├── public/
-│   │   └── notification-sw.js     # Service worker for push notifications
-│   └── src/
-│       ├── api/
-│       │   └── client.js          # Fetch client with GET deduplication
-│       ├── auth/
-│       │   └── AuthContext.jsx    # JWT + Google OAuth context
-│       ├── components/
-│       │   ├── AuthScreen.jsx
-│       │   ├── Avatar.jsx
-│       │   ├── ChatDashboard.jsx  # Main state container (lazy loaded)
-│       │   ├── ChatWindow.jsx
-│       │   ├── ComposeExtras.jsx  # Poll / Event / GIF / Sticker toolbar
-│       │   ├── CreateGroupModal.jsx
-│       │   ├── ErrorBoundary.jsx
-│       │   ├── EventMessage.jsx   # Event card renderer
-│       │   ├── FileShare.jsx
-│       │   ├── ForwardMessageModal.jsx
-│       │   ├── GifPicker.jsx      # Giphy search + trending
-│       │   ├── GroupManagerPanel.jsx
-│       │   ├── LinkPreview.jsx    # URL preview card
-│       │   ├── MessageBubble.jsx  # Renders all message types
-│       │   ├── MessageComposer.jsx
-│       │   ├── MessageReactions.jsx
-│       │   ├── MessageSearchPanel.jsx
-│       │   ├── PollMessage.jsx    # Interactive poll renderer
-│       │   ├── ReadByList.jsx     # Group read-by tooltip
-│       │   ├── SettingsModal.jsx
-│       │   ├── SharedMediaPanel.jsx
-│       │   ├── Sidebar.jsx
-│       │   ├── StatusToast.jsx
-│       │   ├── ThemeSelector.jsx
-│       │   ├── TypingIndicator.jsx
-│       │   ├── UserProfilePanel.jsx
-│       │   └── VoiceRecorder.jsx
-│       ├── hooks/
-│       │   ├── useBrowserNotifications.js
-│       │   ├── useChatSocket.js
-│       │   ├── useLocalPrefs.js
-│       │   └── useOptimizedChat.js
-│       ├── styles/
-│       │   └── global.css         # Design tokens, themes, all component styles
-│       ├── theme/
-│       │   └── ThemeContext.jsx
-│       └── utils/
-│           ├── apiHelpers.js      # Typed wrappers for all REST endpoints
-│           └── chat.js            # Formatting, sorting, upsert helpers
-│
-├── server/                        # Node.js + Express + Socket.io
-│   ├── uploads/                   # Uploaded files (gitignored)
-│   └── src/
-│       ├── config/
-│       │   ├── db.js
-│       │   └── env.js
-│       ├── controllers/
-│       │   ├── auth.controller.js
-│       │   ├── chat.controller.js
-│       │   └── upload.controller.js
-│       ├── middleware/
-│       │   ├── auth.middleware.js
-│       │   ├── error.middleware.js
-│       │   └── upload.middleware.js
-│       ├── models/
-│       │   └── chat.models.js     # User, Conversation, Message schemas
-│       ├── routes/
-│       │   ├── auth.routes.js
-│       │   ├── chat.routes.js
-│       │   ├── upload.routes.js
-│       │   └── user.routes.js
-│       ├── services/
-│       │   ├── chat.service.js    # All DB logic, bulk-query optimised
-│       │   ├── presence.service.js
-│       │   └── socket.service.js
-│       ├── utils/
-│       │   ├── app-error.js
-│       │   ├── async-handler.js
-│       │   ├── auth.js
-│       │   └── validation.js
-│       ├── validators/
-│       │   ├── auth.schemas.js
-│       │   └── chat.schemas.js
-│       ├── app.js
-│       └── index.js
-│
-├── package.json                   # npm workspaces root
+├── client/                 # React/Vite frontend
+├── server/                 # Express + Socket.io backend
+├── package.json            # npm workspaces root
 └── README.md
 ```
 
----
+## Prerequisites
 
-## Setup
-
-### Prerequisites
 - Node.js 18+
-- MongoDB running locally or a MongoDB Atlas URI
-- (Optional) Giphy API key for GIF support — free at [developers.giphy.com](https://developers.giphy.com)
+- MongoDB instance or Atlas connection string
+- Optional: Giphy API key for GIF support
 
-### 1. Clone and install
+## Local Setup
+
+1. Install dependencies
 
 ```bash
-git clone <repo-url>
-cd real-time-chat-application
 npm install
 ```
 
-### 2. Environment files
+2. Create environment files
 
 ```bash
 cp server/.env.example server/.env
 cp client/.env.example client/.env
 ```
 
-**`server/.env`**
+Example server configuration:
 
 ```env
 PORT=5009
@@ -240,164 +94,103 @@ MONGODB_URI=mongodb://localhost:27017/
 MONGODB_DB_NAME=Real_Time_Chat_Application
 UPLOAD_DIR=uploads
 MAX_FILE_SIZE_MB=5
-GOOGLE_CLIENT_ID=your-google-client-id       # optional
+GOOGLE_CLIENT_ID=your-google-client-id
 ```
 
-**`client/.env`**
+Example client configuration:
 
 ```env
 VITE_API_URL=/api
 VITE_SERVER_URL=
-VITE_GOOGLE_CLIENT_ID=your-google-client-id  # optional
-VITE_GIPHY_API_KEY=your-giphy-api-key        # optional — enables GIF picker
+VITE_GOOGLE_CLIENT_ID=your-google-client-id
+VITE_GIPHY_API_KEY=your-giphy-api-key
 ```
 
-> **Port note:** The Vite dev proxy and server both default to `5009`. Changing `PORT` in `server/.env` requires updating `vite.config.js` proxy targets to match.
-
-### 3. Run in development
+3. Start the app
 
 ```bash
 npm run dev
 ```
 
-| Service | URL |
-|---|---|
-| React client | http://localhost:5173 |
-| Express + Socket.io | http://localhost:5009 |
+The project runs with:
+
+- Frontend: http://localhost:5173
+- Backend: http://localhost:5009
+
+## Production Build
 
 ```bash
-npm run dev:client   # client only
-npm run dev:server   # server only
+npm run build
+npm start
 ```
 
-### 4. Production build
+## API Overview
 
-```bash
-npm run build    # builds client/dist
-npm start        # starts Node.js server
-```
+### Auth
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/google`
+- `GET /api/auth/me`
+- `PATCH /api/auth/profile`
+- `PATCH /api/auth/password`
 
----
+### Users
+- `GET /api/users?q=...`
 
-## API Reference
+### Conversations
+- `GET /api/conversations`
+- `POST /api/conversations/direct`
+- `POST /api/conversations/group`
+- `PATCH /api/conversations/:id/group`
+- `PATCH /api/conversations/:id/group/announcement`
+- `PATCH /api/conversations/:id/group/nickname`
+- `POST /api/conversations/:id/group/participants`
+- `PATCH /api/conversations/:id/group/participants/:pid`
+- `DELETE /api/conversations/:id/group/participants/:pid`
+- `GET /api/conversations/:id/messages`
+- `GET /api/conversations/:id/messages/search`
+- `GET /api/conversations/:id/messages/pinned`
+- `GET /api/conversations/:id/media`
+- `POST /api/conversations/:id/messages`
+- `PATCH /api/conversations/:id/messages/:mid`
+- `DELETE /api/conversations/:id/messages/:mid`
+- `POST /api/conversations/:id/read`
+- `POST /api/conversations/:id/messages/:mid/reactions`
+- `DELETE /api/conversations/:id/messages/:mid/reactions/:emoji`
+- `POST /api/conversations/:id/messages/:mid/vote`
+- `PATCH /api/conversations/:id/messages/:mid/pin`
 
-### Auth — `/api/auth`
-
-| Method | Path | Auth | Description |
-|--------|------|:----:|-------------|
-| `POST` | `/register` | — | Create account |
-| `POST` | `/login` | — | Email/password sign-in |
-| `POST` | `/google` | — | Google OAuth token exchange |
-| `GET` | `/me` | ✓ | Get current user |
-| `PATCH` | `/profile` | ✓ | Update display name |
-| `PATCH` | `/password` | ✓ | Change password (local only) |
-
-### Users — `/api/users`
-
-| Method | Path | Auth | Description |
-|--------|------|:----:|-------------|
-| `GET` | `/?q=` | ✓ | Search users by name or email |
-
-### Conversations — `/api/conversations`
-
-| Method | Path | Auth | Description |
-|--------|------|:----:|-------------|
-| `GET` | `/` | ✓ | List all conversations |
-| `POST` | `/direct` | ✓ | Create or open 1:1 conversation |
-| `POST` | `/group` | ✓ | Create group conversation |
-| `PATCH` | `/:id/group` | ✓ | Rename group (admin) |
-| `PATCH` | `/:id/group/announcement` | ✓ | Toggle announcement mode (admin) |
-| `PATCH` | `/:id/group/nickname` | ✓ | Set nickname for a member |
-| `POST` | `/:id/group/participants` | ✓ | Add members (admin) |
-| `PATCH` | `/:id/group/participants/:pid` | ✓ | Update member role (admin) |
-| `DELETE` | `/:id/group/participants/:pid` | ✓ | Remove member (admin) |
-| `GET` | `/:id/messages` | ✓ | Paginated messages (`?limit=30&cursor=`) |
-| `GET` | `/:id/messages/search` | ✓ | Search messages |
-| `GET` | `/:id/messages/pinned` | ✓ | Get pinned messages |
-| `GET` | `/:id/media` | ✓ | Shared media (`?type=images\|videos\|documents\|links\|audio\|gifs`) |
-| `POST` | `/:id/messages` | ✓ | Send message (text/file/audio/poll/event/gif/sticker) |
-| `PATCH` | `/:id/messages/:mid` | ✓ | Edit own message |
-| `DELETE` | `/:id/messages/:mid` | ✓ | Soft-delete own message |
-| `POST` | `/:id/read` | ✓ | Mark conversation as read |
-| `POST` | `/:id/messages/:mid/reactions` | ✓ | Add emoji reaction |
-| `DELETE` | `/:id/messages/:mid/reactions/:emoji` | ✓ | Remove emoji reaction |
-| `POST` | `/:id/messages/:mid/vote` | ✓ | Cast poll vote |
-| `PATCH` | `/:id/messages/:mid/pin` | ✓ | Pin/unpin message (admin) |
-
-### Uploads — `/api/uploads`
-
-| Method | Path | Auth | Description |
-|--------|------|:----:|-------------|
-| `POST` | `/` | ✓ | Upload file (multipart, max 5 MB) |
+### Uploads
+- `POST /api/uploads`
 
 ### Health
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/health` | Returns `{ "status": "ok" }` |
-
----
+- `GET /api/health`
 
 ## Socket.io Events
 
-### Client → Server
+### Client to server
+- `conversation:join`
+- `conversation:leave`
+- `typing:start`
+- `typing:stop`
 
-| Event | Payload | Description |
-|-------|---------|-------------|
-| `conversation:join` | `{ conversationId }` | Join a conversation room |
-| `conversation:leave` | `{ conversationId }` | Leave a conversation room |
-| `typing:start` | `{ conversationId }` | Broadcast typing started |
-| `typing:stop` | `{ conversationId }` | Broadcast typing stopped |
+### Server to client
+- `presence:snapshot`
+- `presence:update`
+- `conversation:upsert`
+- `conversation:removed`
+- `message:new`
+- `message:update`
+- `message:status`
+- `message:pinned`
+- `typing:update`
 
-### Server → Client
+## Notes
 
-| Event | Payload | Description |
-|-------|---------|-------------|
-| `presence:snapshot` | `{ onlineUserIds[] }` | Full online list on connect |
-| `presence:update` | `{ userId, isOnline, lastSeen }` | Single user presence change |
-| `conversation:upsert` | `conversation` | New or updated conversation |
-| `conversation:removed` | `{ conversationId }` | User removed from group |
-| `message:new` | `message` | Incoming message |
-| `message:update` | `message` | Edited, deleted, reacted, voted, or pinned message |
-| `message:status` | `{ conversationId, messageIds[], status }` | Bulk delivered/seen |
-| `message:pinned` | `{ conversationId, messageId, pin }` | Pin/unpin notification |
-| `typing:update` | `{ conversationId, userId, userName, isTyping }` | Typing indicator |
+- The project uses a Vite dev proxy for frontend API requests.
+- File uploads are stored under the server uploads directory.
+- Credentials and personal data should never be committed to source control.
 
----
-
-## Database Schema
-
-### User
-```
-name, email (unique), passwordHash?, authProvider (local|google),
-avatarSeed, lastSeen, createdAt, updatedAt
-```
-
-### Conversation
-```
-name?, type (direct|group), createdBy,
-isAnnouncement (bool), nicknames (Map<userId, string>),
-pinnedMessages[] (ref Message, max 3), wallpaper?,
-participants[]: { user, role (member|admin), joinedAt, lastReadMessage }
-```
-
-### Message
-```
-conversation, sender, content (max 4000), status (sent|delivered|seen),
-messageType: text | file | audio | poll | event | gif | sticker
-fileName?, fileUrl?, fileSize?, mimeType?,
-poll: { question, options[]: { text, votes[] }, allowMultiple, closedAt? }
-event: { title, description, eventType, startsAt? }
-gifUrl?, gifTitle?, stickerUrl?,
-linkPreview: { url, title?, description?, image?, siteName? }
-readBy[] (User refs), isPinned (bool),
-replyToMessage?, reactions[]: { user, emoji, reactedAt },
-isDeleted, deletedAt?, editedAt?, createdAt, updatedAt
-```
-
-**Indexes:**
-- `Conversation`: `{ participants.user, updatedAt }`
-- `Message`: `{ conversation, _id }`, `{ conversation, sender, status }`, `{ conversation, isDeleted, _id }`
 
 ---
 

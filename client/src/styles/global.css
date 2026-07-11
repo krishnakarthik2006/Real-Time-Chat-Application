@@ -1,5 +1,5 @@
 /* ============================================================
-   GLOBAL.CSS — PulseChat Professional UI
+   GLOBAL.CSS — Real-Time Chat UI
    ============================================================ */
 @import url("https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap");
 
@@ -292,7 +292,7 @@ img { display:block; }
   width:10px; height:10px; border-radius:50%;
   background:var(--clr-ink-3); border:2px solid var(--clr-sidebar);
 }
-.presence-dot--online { background:var(--clr-green); animation:pulse-ring 2.5s ease-out infinite; }
+.presence-dot--online { background:var(--clr-green); animation:glow-ring 2.5s ease-out infinite; }
 
 /* Badge */
 .badge {
@@ -1529,7 +1529,7 @@ kbd {
   height: 8px;
   border-radius: 50%;
   background: var(--clr-red);
-  animation: pulse-ring 1.2s ease-out infinite;
+  animation: glow-ring 1.2s ease-out infinite;
   flex-shrink: 0;
 }
 .voice-recorder__time {

@@ -158,7 +158,7 @@ export default function AuthScreen() {
           <div className="hero-brand">
             <div className="brand-mark">💬</div>
             <div>
-              <p className="eyebrow" style={{ color: "rgba(255,255,255,.6)" }}>PulseChat</p>
+              <p className="eyebrow" style={{ color: "rgba(255,255,255,.6)" }}>Secure messaging</p>
               <h2>Real-Time Chat</h2>
             </div>
           </div>

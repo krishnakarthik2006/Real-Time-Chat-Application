@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { request } from "../api/client";
 
 const AuthContext = createContext(null);
-const TOKEN_KEY = "pulse-chat-token";
+const TOKEN_KEY = "chat-app-token";
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || "");

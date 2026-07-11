@@ -473,7 +473,7 @@ function DataSection({ onClose, onLogout }) {
   const [confirmClear, setConfirmClear] = useState(false);
 
   function clearLocalData() {
-    const keep = ["pulse-chat-token", "chat-theme", "chat-accent", "chat-font-size", "chat-density"];
+    const keep = ["chat-app-token", "chat-theme", "chat-accent", "chat-font-size", "chat-density"];
     const all = Object.keys(localStorage);
     all.forEach((k) => { if (!keep.includes(k)) localStorage.removeItem(k); });
     setCleared(true);
@@ -521,7 +521,7 @@ function AboutSection() {
   return (
     <div className="settings-panel-body">
       <section className="settings-section">
-        <h3 className="settings-section__title">PulseChat</h3>
+        <h3 className="settings-section__title">Real-Time Chat</h3>
         <Row label="Version" right={<span className="pill">1.0.0</span>} />
         <Row label="Stack" sub="React 19 · Node.js · Socket.io · MongoDB" />
         <Row label="Built with" sub="Vite · Express · Mongoose · Zod" />

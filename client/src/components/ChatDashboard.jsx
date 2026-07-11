@@ -134,7 +134,7 @@ export default memo(function ChatDashboard() {
     requestPermission,
   } = useBrowserNotifications();
   const [conversationPreferences, setConversationPreferences] = useLocalStorage(
-    `pulse-chat-preferences-${user.id}`,
+    `chat-app-preferences-${user.id}`,
     {},
   );
   const conversationPreferencesRef = useRef(conversationPreferences);
@@ -192,7 +192,7 @@ export default memo(function ChatDashboard() {
 
   // Starred messages — stored in localStorage per user
   const [starredMessageIds, setStarredMessageIds] = useLocalStorage(
-    `pulse-starred-${user.id}`,
+    `chat-app-starred-${user.id}`,
     [],
   );
   // Forward modal
