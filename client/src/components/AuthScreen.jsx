@@ -271,21 +271,30 @@ export default function AuthScreen() {
           </button>
         </form>
 
-        <div className="auth-separator"><span>or</span></div>
-
-        <div className="google-auth-wrapper">
-          <GoogleLogin
-            onSuccess={async (cr) => {
-              setServerError("");
-              setSubmitting(true);
-              try { await loginWithGoogle(cr.credential); }
-              catch (err) { setServerError(err.message || "Google sign-in failed."); }
-              finally { setSubmitting(false); }
-            }}
-            onError={() => setServerError("Google sign-in was unsuccessful. Please try again.")}
-            useOneTap
-          />
-        </div>
+        {/* Conditionally render Google sign-in */}
+        {(() => {
+          const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+          const isGoogleConfigured = googleClientId && googleClientId !== "YOUR_GOOGLE_CLIENT_ID" && googleClientId.trim() !== "";
+          if (!isGoogleConfigured) return null;
+          return (
+            <>
+              <div className="auth-separator"><span>or</span></div>
+              <div className="google-auth-wrapper">
+                <GoogleLogin
+                  onSuccess={async (cr) => {
+                    setServerError("");
+                    setSubmitting(true);
+                    try { await loginWithGoogle(cr.credential); }
+                    catch (err) { setServerError(err.message || "Google sign-in failed."); }
+                    finally { setSubmitting(false); }
+                  }}
+                  onError={() => setServerError("Google sign-in was unsuccessful. Please try again.")}
+                  useOneTap
+                />
+              </div>
+            </>
+          );
+        })()}
 
         <div className="auth-switch">
           <button type="button" onClick={switchMode}>

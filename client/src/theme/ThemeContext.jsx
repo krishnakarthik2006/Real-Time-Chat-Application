@@ -1,23 +1,55 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 const ThemeContext = createContext(null);
 
+function readStoredValue(key, fallback) {
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+
+  try {
+    return window.localStorage.getItem(key) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => localStorage.getItem("chat-theme") || "light");
-  const [accent, setAccent] = useState(() => localStorage.getItem("chat-accent") || "indigo");
+  const [theme, setTheme] = useState(() => readStoredValue("chat-theme", "light"));
+  const [accent, setAccent] = useState(() => readStoredValue("chat-accent", "indigo"));
 
   useEffect(() => {
-    localStorage.setItem("chat-theme", theme);
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem("chat-theme", theme);
+    } catch {
+      // Ignore storage failures in private browsing or restricted environments.
+    }
+
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
 
   useEffect(() => {
-    localStorage.setItem("chat-accent", accent);
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem("chat-accent", accent);
+    } catch {
+      // Ignore storage failures in private browsing or restricted environments.
+    }
+
     document.documentElement.setAttribute("data-accent", accent);
   }, [accent]);
 
+  const value = useMemo(() => ({ theme, setTheme, accent, setAccent }), [theme, accent]);
+
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, accent, setAccent }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

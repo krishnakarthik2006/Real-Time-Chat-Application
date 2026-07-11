@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { LogOut, UserPlus, MoreVertical, Pin, PinOff, BellOff, Bell, Archive, ArchiveRestore, Search, Settings } from "lucide-react";
 import Avatar from "./Avatar";
 import SettingsModal from "./SettingsModal";
@@ -11,7 +11,7 @@ const FILTER_OPTIONS = [
   { id: "group",  label: "Groups" },
 ];
 
-function ContextMenu({ open, preference, onPin, onMute, onArchive, onClose, menuRef }) {
+const ContextMenu = memo(function ContextMenu({ open, preference, onPin, onMute, onArchive, onClose, menuRef }) {
   useEffect(() => {
     if (!open) return;
     function handle(e) { if (menuRef.current && !menuRef.current.contains(e.target)) onClose(); }
@@ -37,9 +37,9 @@ function ContextMenu({ open, preference, onPin, onMute, onArchive, onClose, menu
       </button>
     </div>
   );
-}
+});
 
-function ConversationCard({
+const ConversationCard = memo(function ConversationCard({
   conversation, currentUser, selectedConversationId,
   presenceByUserId, preference,
   onSelectConversation, onTogglePin, onToggleMute, onToggleArchive,
@@ -101,9 +101,9 @@ function ConversationCard({
       </div>
     </article>
   );
-}
+});
 
-export default function Sidebar({
+export default memo(function Sidebar({
   currentUser, pinnedConversations, recentConversations,
   conversationStats, conversationOverview, conversationView,
   conversationQuery, conversationFilter, selectedConversationId,
@@ -283,4 +283,4 @@ export default function Sidebar({
       />
     </aside>
   );
-}
+});

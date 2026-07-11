@@ -8,18 +8,29 @@ import "./styles/global.css";
 
 import { GoogleOAuthProvider } from "@react-oauth/google";
 
-const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID";
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const isGoogleConfigured = googleClientId && googleClientId !== "YOUR_GOOGLE_CLIENT_ID" && googleClientId.trim() !== "";
+
+function AppWrapper() {
+  return (
+    <ThemeProvider>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </ThemeProvider>
+  );
+}
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <ErrorBoundary>
-      <GoogleOAuthProvider clientId={googleClientId}>
-        <ThemeProvider>
-          <AuthProvider>
-            <App />
-          </AuthProvider>
-        </ThemeProvider>
-      </GoogleOAuthProvider>
+      {isGoogleConfigured ? (
+        <GoogleOAuthProvider clientId={googleClientId}>
+          <AppWrapper />
+        </GoogleOAuthProvider>
+      ) : (
+        <AppWrapper />
+      )}
     </ErrorBoundary>
   </StrictMode>,
 );

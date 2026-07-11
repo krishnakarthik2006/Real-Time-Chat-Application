@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, memo, useEffect, useRef, useState } from "react";
 import { Search, X, Users, Pin, PinOff, BellOff, Bell, Archive, ArchiveRestore, ChevronLeft, Images, User } from "lucide-react";
 import Avatar from "./Avatar";
 import GroupManagerPanel from "./GroupManagerPanel";
@@ -10,7 +10,7 @@ import TypingIndicator from "./TypingIndicator";
 import UserProfilePanel from "./UserProfilePanel";
 import { formatDayDivider, getConversationStatus, getConversationTitle, isSameDay } from "../utils/chat";
 
-export default function ChatWindow({
+export default memo(function ChatWindow({
   currentUser, conversation, conversationPreference, messages, typingUsers,
   loadingMessages, loadingMoreMessages, hasMoreMessages, onLoadMoreMessages,
   sendingMessage, presenceByUserId, socket,
@@ -298,4 +298,4 @@ export default function ChatWindow({
       />
     </section>
   );
-}
+});

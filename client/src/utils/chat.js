@@ -228,6 +228,10 @@ export function formatInlinePreview(message) {
 }
 
 export function sortConversations(conversations) {
+  if (!Array.isArray(conversations)) {
+    return [];
+  }
+
   return [...conversations].sort((left, right) => {
     const leftDate = left.lastMessage?.createdAt || left.updatedAt || left.createdAt;
     const rightDate = right.lastMessage?.createdAt || right.updatedAt || right.createdAt;

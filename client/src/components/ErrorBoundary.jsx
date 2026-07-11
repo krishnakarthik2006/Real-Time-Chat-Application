@@ -29,8 +29,8 @@ export default class ErrorBoundary extends Component {
           <div className="error-content">
             <h2>Something went wrong</h2>
             <p>An unexpected error occurred. Please try again or reload the page.</p>
-            {import.meta.env.DEV && this.state.error && (
-              <details className="error-details">
+            {this.state.error && (
+              <details open className="error-details">
                 <summary>Error details</summary>
                 <pre>{this.state.error.toString()}</pre>
                 <pre>{this.state.errorInfo?.componentStack}</pre>

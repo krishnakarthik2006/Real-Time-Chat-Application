@@ -172,6 +172,24 @@ function mapParticipant(participant) {
   };
 }
 
+function mapNicknames(nicknames) {
+  if (!nicknames) {
+    return {};
+  }
+
+  if (nicknames instanceof Map) {
+    return Object.fromEntries(nicknames);
+  }
+
+  if (typeof nicknames === "object" && !Array.isArray(nicknames)) {
+    return Object.fromEntries(
+      Object.entries(nicknames).map(([userId, nickname]) => [String(userId), nickname]),
+    );
+  }
+
+  return {};
+}
+
 function mapConversation(conversation, lastMessage, unreadCount) {
   return {
     id: normalizeId(conversation),
@@ -182,10 +200,10 @@ function mapConversation(conversation, lastMessage, unreadCount) {
     updatedAt: conversation.updatedAt,
     unreadCount,
     isAnnouncement: Boolean(conversation.isAnnouncement),
-    nicknames: conversation.nicknames ? Object.fromEntries(conversation.nicknames) : {},
+    nicknames: mapNicknames(conversation.nicknames),
     pinnedMessages: (conversation.pinnedMessages || []).map((id) => String(id)),
     wallpaper: conversation.wallpaper || null,
-    participants: [...conversation.participants]
+    participants: (Array.isArray(conversation.participants) ? [...conversation.participants] : [])
       .map(mapParticipant)
       .sort((left, right) => left.name.localeCompare(right.name)),
     lastMessage: mapLastMessage(lastMessage),

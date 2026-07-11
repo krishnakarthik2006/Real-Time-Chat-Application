@@ -382,6 +382,105 @@ export default memo(function ChatDashboard() {
     setConversationView(nextPreference.archived ? "archived" : "inbox");
   }, [updateConversationPreference]);
 
+  const handleSelectConversation = useCallback((conversation) => {
+    selectConversation(conversation.id);
+  }, [selectConversation]);
+
+  const handleOpenGroupModal = useCallback(() => {
+    setShowGroupModal(true);
+    setGroupSearchTerm("");
+    setSelectedGroupUserIds([]);
+  }, []);
+
+  const handleConversationViewChange = useCallback((view) => {
+    setConversationView(view);
+  }, []);
+
+  const handleConversationQueryChange = useCallback((value) => {
+    setConversationQuery(value);
+  }, []);
+
+  const handleConversationFilterChange = useCallback((value) => {
+    setConversationFilter(value);
+  }, []);
+
+  const handleSearchTermChange = useCallback((value) => {
+    setSearchTerm(value);
+  }, []);
+
+  const handleToggleSearchPanel = useCallback(() => {
+    setSearchPanelOpen((current) => {
+      const next = !current;
+
+      if (!next) {
+        setMessageSearchQuery("");
+        setMessageSearchResults([]);
+      }
+
+      return next;
+    });
+  }, []);
+
+  const handleClearSearch = useCallback(() => {
+    setMessageSearchQuery("");
+    setMessageSearchResults([]);
+  }, []);
+
+  const handleReplyToMessage = useCallback((message) => {
+    setReplyTarget(message);
+    setEditingMessageId(null);
+    setEditingContent("");
+  }, []);
+
+  const handleCancelReply = useCallback(() => {
+    setReplyTarget(null);
+  }, []);
+
+  const handleStartEdit = useCallback((message) => {
+    setReplyTarget(null);
+    setEditingMessageId(message.id);
+    setEditingContent(message.content || "");
+  }, []);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingMessageId(null);
+    setEditingContent("");
+  }, []);
+
+  const handleToggleGroupPanel = useCallback(() => {
+    setGroupPanelOpen((current) => !current);
+  }, []);
+
+  const handleBackToList = useCallback(() => {
+    setMobilePane("list");
+  }, []);
+
+  const handleTogglePinConversation = useCallback(() => {
+    if (selectedConversation?.id) {
+      toggleConversationPin(selectedConversation.id);
+    }
+  }, [selectedConversation?.id, toggleConversationPin]);
+
+  const handleToggleMuteConversation = useCallback(() => {
+    if (selectedConversation?.id) {
+      toggleConversationMute(selectedConversation.id);
+    }
+  }, [selectedConversation?.id, toggleConversationMute]);
+
+  const handleToggleArchiveConversation = useCallback(() => {
+    if (selectedConversation?.id) {
+      toggleConversationArchived(selectedConversation.id);
+    }
+  }, [selectedConversation?.id, toggleConversationArchived]);
+
+  const handleOpenForwardModal = useCallback((message) => {
+    setForwardingMessage(message);
+  }, []);
+
+  const handleCloseForwardModal = useCallback(() => {
+    setForwardingMessage(null);
+  }, []);
+
   useEffect(() => {
     selectedConversationIdRef.current = selectedConversationId;
   }, [selectedConversationId]);
@@ -645,7 +744,7 @@ export default memo(function ChatDashboard() {
         };
       });
 
-      onlineUserIds.forEach((userId) => {
+      (Array.isArray(onlineUserIds) ? onlineUserIds : []).forEach((userId) => {
         nextPresence[userId] = {
           ...nextPresence[userId],
           isOnline: true,
@@ -695,6 +794,25 @@ export default memo(function ChatDashboard() {
       }
     }
   }, [selectConversation]);
+
+  const markConversationAsRead = useCallback(async (conversationId) => {
+    try {
+      await request(`/conversations/${conversationId}/read`, {
+        method: "POST",
+        token,
+      });
+
+      setConversations((current) => current.map((conversation) => (
+        conversation.id === conversationId
+          ? { ...conversation, unreadCount: 0 }
+          : conversation
+      )));
+    } catch (_error) {
+      return null;
+    }
+
+    return null;
+  }, [token]);
 
   const handleIncomingMessage = useCallback((message) => {
     setMessagesByConversation((current) => ({
@@ -754,7 +872,7 @@ export default memo(function ChatDashboard() {
     if (message.sender.id !== user.id && selectedConversationIdRef.current === message.conversationId) {
       void markConversationAsRead(message.conversationId);
     }
-  }, [notify, user]);
+  }, [markConversationAsRead, notify, user]);
 
   const handleMessageUpdate = useCallback((message) => {
     setMessagesByConversation((current) => ({
@@ -960,26 +1078,7 @@ export default memo(function ChatDashboard() {
     loadMessages();
 
     return () => { cancelled = true; };
-  }, [selectedConversationId, token]);
-
-  async function markConversationAsRead(conversationId) {
-    try {
-      await request(`/conversations/${conversationId}/read`, {
-        method: "POST",
-        token,
-      });
-
-      setConversations((current) => current.map((conversation) => (
-        conversation.id === conversationId
-          ? { ...conversation, unreadCount: 0 }
-          : conversation
-      )));
-    } catch (_error) {
-      return null;
-    }
-
-    return null;
-  }
+  }, [markConversationAsRead, selectedConversationId, token]);
 
   const loadMoreMessages = useCallback(async () => {
     if (!selectedConversationId || loadingMoreMessages || !hasMoreMessages) return;
@@ -1271,7 +1370,7 @@ export default memo(function ChatDashboard() {
     }
   }
 
-  async function enableNotifications() {
+  const enableNotifications = useCallback(async () => {
     try {
       const permission = await requestPermission();
 
@@ -1281,9 +1380,9 @@ export default memo(function ChatDashboard() {
     } catch (error) {
       setStatusMessage(error.message || "Could not enable notifications.");
     }
-  }
+  }, [requestPermission]);
 
-  function openSearchResult(message) {
+  const openSearchResult = useCallback((message) => {
     setMessagesByConversation((current) => ({
       ...current,
       [selectedConversationId]: upsertMessage(current[selectedConversationId] || [], message),
@@ -1293,7 +1392,7 @@ export default memo(function ChatDashboard() {
     highlightTimeoutRef.current = window.setTimeout(() => {
       setHighlightedMessageId(null);
     }, 2600);
-  }
+  }, [selectedConversationId]);
 
   return (
     <>
@@ -1313,17 +1412,13 @@ export default memo(function ChatDashboard() {
           searchResults={searchResults}
           searchingUsers={searchingUsers}
           conversationPreferences={conversationPreferences}
-          onConversationViewChange={setConversationView}
-          onConversationQueryChange={setConversationQuery}
-          onConversationFilterChange={setConversationFilter}
-          onSearchTermChange={setSearchTerm}
-          onSelectConversation={(conversation) => selectConversation(conversation.id)}
+          onConversationViewChange={handleConversationViewChange}
+          onConversationQueryChange={handleConversationQueryChange}
+          onConversationFilterChange={handleConversationFilterChange}
+          onSearchTermChange={handleSearchTermChange}
+          onSelectConversation={handleSelectConversation}
           onStartDirectConversation={startDirectConversation}
-          onOpenGroupModal={() => {
-            setShowGroupModal(true);
-            setGroupSearchTerm("");
-            setSelectedGroupUserIds([]);
-          }}
+          onOpenGroupModal={handleOpenGroupModal}
           notificationsSupported={notificationsSupported}
           notificationPermission={notificationPermission}
           onEnableNotifications={enableNotifications}
@@ -1356,48 +1451,23 @@ export default memo(function ChatDashboard() {
             searchQuery={messageSearchQuery}
             searchResults={messageSearchResults}
             searchingMessages={searchingMessages}
-            onToggleSearchPanel={() => {
-              setSearchPanelOpen((current) => {
-                const next = !current;
-
-                if (!next) {
-                  setMessageSearchQuery("");
-                  setMessageSearchResults([]);
-                }
-
-                return next;
-              });
-            }}
+            onToggleSearchPanel={handleToggleSearchPanel}
             onSearchQueryChange={setMessageSearchQuery}
             onSelectSearchMessage={openSearchResult}
-            onClearSearch={() => {
-              setMessageSearchQuery("");
-              setMessageSearchResults([]);
-            }}
+            onClearSearch={handleClearSearch}
             highlightedMessageId={highlightedMessageId}
             replyTarget={replyTarget}
-            onReplyToMessage={(message) => {
-              setReplyTarget(message);
-              setEditingMessageId(null);
-              setEditingContent("");
-            }}
-            onCancelReply={() => setReplyTarget(null)}
+            onReplyToMessage={handleReplyToMessage}
+            onCancelReply={handleCancelReply}
             editingMessageId={editingMessageId}
             editingContent={editingContent}
             onEditContentChange={setEditingContent}
-            onStartEdit={(message) => {
-              setReplyTarget(null);
-              setEditingMessageId(message.id);
-              setEditingContent(message.content || "");
-            }}
-            onCancelEdit={() => {
-              setEditingMessageId(null);
-              setEditingContent("");
-            }}
+            onStartEdit={handleStartEdit}
+            onCancelEdit={handleCancelEdit}
             onSaveEdit={saveEditedMessage}
             onDeleteMessage={removeMessage}
             groupPanelOpen={groupPanelOpen}
-            onToggleGroupPanel={() => setGroupPanelOpen((current) => !current)}
+            onToggleGroupPanel={handleToggleGroupPanel}
             groupSearchTerm={groupManagerSearchTerm}
             groupCandidates={groupManagerCandidates}
             loadingGroupCandidates={loadingGroupManagerCandidates}
@@ -1408,19 +1478,15 @@ export default memo(function ChatDashboard() {
             onRemoveGroupParticipant={removeGroupParticipant}
             isMobileLayout={isMobileLayout}
             showBackButton={isMobileLayout && mobilePane === "chat"}
-            onBackToList={() => setMobilePane("list")}
-            onTogglePinConversation={() => toggleConversationPin(selectedConversation?.id)}
-            onToggleMuteConversation={() => toggleConversationMute(selectedConversation?.id)}
-            onToggleArchiveConversation={() => {
-              if (selectedConversation?.id) {
-                toggleConversationArchived(selectedConversation.id);
-              }
-            }}
+            onBackToList={handleBackToList}
+            onTogglePinConversation={handleTogglePinConversation}
+            onToggleMuteConversation={handleToggleMuteConversation}
+            onToggleArchiveConversation={handleToggleArchiveConversation}
             onAddReaction={handleAddReaction}
             onRemoveReaction={handleRemoveReaction}
             starredMessageIds={starredMessageIds}
             onToggleStar={handleToggleStar}
-            onForwardMessage={(msg) => setForwardingMessage(msg)}
+            onForwardMessage={handleOpenForwardModal}
             onPollVote={handlePollVote}
             onPinMessage={handlePinMessage}
             onSetAnnouncement={handleSetAnnouncement}
@@ -1457,7 +1523,7 @@ export default memo(function ChatDashboard() {
         conversations={conversations}
         currentUser={user}
         onForward={handleForwardMessage}
-        onClose={() => setForwardingMessage(null)}
+        onClose={handleCloseForwardModal}
       />
     </>
   );
