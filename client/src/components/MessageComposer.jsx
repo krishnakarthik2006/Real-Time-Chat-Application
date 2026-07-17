@@ -5,7 +5,7 @@ import VoiceRecorder from "./VoiceRecorder";
 import ComposeExtras from "./ComposeExtras";
 import FileShare from "./FileShare";
 
-function getDraftKey(cid) { return `chat-draft-${cid}`; }
+function getDraftKey(cid) { return `chat-app-draft-${cid}`; }
 
 export default function MessageComposer({
   conversationId, socket, onSend, disabled,
